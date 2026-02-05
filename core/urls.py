@@ -1,298 +1,314 @@
+"""
+URL routing for KarnaliX API.
+Organized by role: auth, powerhouse, super, master, user
+"""
 from django.urls import path
-from . import views
+
+# Auth views
+from core.views.auth_views import (
+    login_view, register_view, me_view, logout_view,
+    refresh_token_view, change_password_view,
+    send_otp_view, verify_otp_view,
+)
+
+# Public views (unauthenticated)
+from core.views import public_views as pub_views
+
+# Powerhouse views
+from core.views.powerhouse import dashboard_views as ph_dashboard
+from core.views.powerhouse import super_views as ph_super
+from core.views.powerhouse import master_views as ph_master
+from core.views.powerhouse import user_views as ph_user
+from core.views.powerhouse import statement_views as ph_statement
+from core.views.powerhouse import client_request_views as ph_request
+from core.views.powerhouse import game_views as ph_game
+from core.views.powerhouse import kyc_views as ph_kyc
+from core.views.powerhouse import support_views as ph_support
+from core.views.powerhouse import payment_views as ph_payment
+from core.views.powerhouse import settings_views as ph_settings
+from core.views.powerhouse import content_views as ph_content
+from core.views.powerhouse import bonus_rule_views as ph_bonus_rule
+from core.views.powerhouse import bet_views as ph_bet
+
+# Super views
+from core.views.super import dashboard_views as su_dashboard
+from core.views.super import master_views as su_master
+from core.views.super import user_views as su_user
+from core.views.super import statement_views as su_statement
+from core.views.super import client_request_views as su_request
+from core.views.super import kyc_views as su_kyc
+from core.views.super import support_views as su_support
+from core.views.super import payment_views as su_payment
+
+# Master views
+from core.views.master import dashboard_views as ma_dashboard
+from core.views.master import user_views as ma_user
+from core.views.master import statement_views as ma_statement
+from core.views.master import client_request_views as ma_request
+from core.views.master import profit_loss_views as ma_profit
+from core.views.master import activity_views as ma_activity
+from core.views.master import profile_views as ma_profile
+from core.views.master import payment_views as ma_payment
+
+# User views
+from core.views.user import dashboard_views as us_dashboard
+from core.views.user import statement_views as us_statement
+from core.views.user import bet_views as us_bet
+from core.views.user import profit_loss_views as us_profit
+from core.views.user import password_views as us_password
+from core.views.user import activity_views as us_activity
+from core.views.user import result_views as us_result
+from core.views.user import deposit_views as us_deposit
+from core.views.user import withdraw_views as us_withdraw
+from core.views.user import transaction_views as us_transaction
+from core.views.user import profile_views as us_profile
+from core.views.user import referral_views as us_referral
+from core.views.user import bonus_views as us_bonus
+from core.views.user import ticket_views as us_tickets
+from core.views.user import settings_views as us_settings
+from core.views.user import kyc_views as us_kyc
+from core.views import chat_views as chat_views
 
 urlpatterns = [
     # =============================================================================
-    # AUTH
+    # AUTH ROUTES
     # =============================================================================
-    path('auth/login/', views.AuthLoginView.as_view()),
-    path('auth/login', views.AuthLoginView.as_view()),
-    path('auth/logout/', views.AuthLogoutView.as_view()),
-    path('auth/logout', views.AuthLogoutView.as_view()),
-    path('auth/me/', views.AuthMeView.as_view()),
-    path('auth/me', views.AuthMeView.as_view()),
-    path('auth/register/', views.AuthRegisterView.as_view()),
-    path('auth/register', views.AuthRegisterView.as_view()),
-
+    path('auth/login', login_view, name='auth-login'),
+    path('auth/register', register_view, name='auth-register'),
+    path('auth/send-otp', send_otp_view, name='auth-send-otp'),
+    path('auth/verify-otp', verify_otp_view, name='auth-verify-otp'),
+    path('auth/me', me_view, name='auth-me'),
+    path('auth/logout', logout_view, name='auth-logout'),
+    path('auth/refresh', refresh_token_view, name='auth-refresh'),
+    path('auth/change-password', change_password_view, name='auth-change-password'),
+    
     # =============================================================================
-    # USERS
+    # PUBLIC ROUTES (unauthenticated)
     # =============================================================================
-    path('users/', views.UserListCreateView.as_view()),
-    path('users', views.UserListCreateView.as_view()),
-    path('users/<int:pk>/', views.UserDetailView.as_view()),
-    path('users/<int:pk>', views.UserDetailView.as_view()),
-    path('users/<int:pk>/suspend/', views.UserSuspendView.as_view()),
-    path('users/<int:pk>/suspend', views.UserSuspendView.as_view()),
-    path('users/<int:pk>/change-role/', views.UserChangeRoleView.as_view()),
-    path('users/<int:pk>/change-role', views.UserChangeRoleView.as_view()),
-
+    path('public/games/', pub_views.public_game_list, name='public-games'),
+    path('public/games/<int:game_id>/', pub_views.public_game_detail, name='public-game-detail'),
+    path('public/providers/', pub_views.public_provider_list, name='public-providers'),
+    path('public/categories/', pub_views.public_category_list, name='public-categories'),
+    path('public/content/', pub_views.public_content, name='public-content'),
+    
     # =============================================================================
-    # WALLETS
+    # POWERHOUSE ROUTES
     # =============================================================================
-    path('wallets/my-balance/', views.WalletBalanceView.as_view()),
-    path('wallets/my-balance', views.WalletBalanceView.as_view()),
-    path('wallets/<int:pk>/', views.WalletUserBalanceView.as_view()),
-    path('wallets/<int:pk>', views.WalletUserBalanceView.as_view()),
-
+    # Dashboard
+    path('powerhouse/dashboard', ph_dashboard.dashboard_stats, name='powerhouse-dashboard'),
+    path('powerhouse/bets/', ph_bet.bet_list, name='powerhouse-bet-list'),
+    
+    # Super management
+    path('powerhouse/supers/', ph_super.super_list_create, name='powerhouse-super-list'),
+    path('powerhouse/supers/<int:user_id>/', ph_super.super_detail, name='powerhouse-super-detail'),
+    path('powerhouse/supers/<int:user_id>/suspend/', ph_super.super_suspend, name='powerhouse-super-suspend'),
+    path('powerhouse/supers/<int:user_id>/activate/', ph_super.super_activate, name='powerhouse-super-activate'),
+    
+    # Master management
+    path('powerhouse/masters/', ph_master.master_list_create, name='powerhouse-master-list'),
+    path('powerhouse/masters/<int:user_id>/', ph_master.master_detail, name='powerhouse-master-detail'),
+    path('powerhouse/masters/<int:user_id>/suspend/', ph_master.master_suspend, name='powerhouse-master-suspend'),
+    path('powerhouse/masters/<int:user_id>/activate/', ph_master.master_activate, name='powerhouse-master-activate'),
+    
+    # User management
+    path('powerhouse/users/', ph_user.user_list_create, name='powerhouse-user-list'),
+    path('powerhouse/users/<int:user_id>/', ph_user.user_detail, name='powerhouse-user-detail'),
+    path('powerhouse/users/<int:user_id>/suspend/', ph_user.user_suspend, name='powerhouse-user-suspend'),
+    path('powerhouse/users/<int:user_id>/activate/', ph_user.user_activate, name='powerhouse-user-activate'),
+    path('powerhouse/users/<int:user_id>/adjust-balance/', ph_user.user_adjust_balance, name='powerhouse-user-adjust'),
+    
+    # Statements
+    path('powerhouse/statements/account/', ph_statement.account_statement, name='powerhouse-account-statement'),
+    path('powerhouse/statements/bonus/', ph_statement.bonus_statement, name='powerhouse-bonus-statement'),
+    path('powerhouse/statements/grant-bonus/', ph_statement.grant_bonus, name='powerhouse-grant-bonus'),
+    
+    # Client Requests
+    path('powerhouse/requests/deposit/', ph_request.deposit_list, name='powerhouse-deposit-list'),
+    path('powerhouse/requests/withdraw/', ph_request.withdraw_list, name='powerhouse-withdraw-list'),
+    path('powerhouse/requests/total-dw/', ph_request.total_dw, name='powerhouse-total-dw'),
+    path('powerhouse/requests/super-master-dw/', ph_request.super_master_dw, name='powerhouse-super-master-dw'),
+    path('powerhouse/requests/<int:request_id>/approve/', ph_request.approve_request, name='powerhouse-request-approve'),
+    path('powerhouse/requests/<int:request_id>/reject/', ph_request.reject_request, name='powerhouse-request-reject'),
+    
+    # Game Provider
+    path('powerhouse/providers/', ph_game.provider_list_create, name='powerhouse-provider-list'),
+    path('powerhouse/providers/<int:provider_id>/', ph_game.provider_detail, name='powerhouse-provider-detail'),
+    path('powerhouse/providers/<int:provider_id>/toggle/', ph_game.provider_toggle_status, name='powerhouse-provider-toggle'),
+    
+    # Game Management
+    path('powerhouse/games/', ph_game.game_list_create, name='powerhouse-game-list'),
+    path('powerhouse/games/<int:game_id>/', ph_game.game_detail, name='powerhouse-game-detail'),
+    path('powerhouse/games/<int:game_id>/toggle/', ph_game.game_toggle_status, name='powerhouse-game-toggle'),
+    
+    # KYC Management
+    path('powerhouse/kyc/', ph_kyc.kyc_list, name='powerhouse-kyc-list'),
+    path('powerhouse/kyc/<int:kyc_id>/', ph_kyc.kyc_detail, name='powerhouse-kyc-detail'),
+    path('powerhouse/kyc/<int:kyc_id>/approve/', ph_kyc.kyc_approve, name='powerhouse-kyc-approve'),
+    path('powerhouse/kyc/<int:kyc_id>/reject/', ph_kyc.kyc_reject, name='powerhouse-kyc-reject'),
+    
+    # Support Tickets
+    path('powerhouse/tickets/', ph_support.ticket_list, name='powerhouse-ticket-list'),
+    path('powerhouse/tickets/<int:ticket_id>/', ph_support.ticket_detail, name='powerhouse-ticket-detail'),
+    path('powerhouse/tickets/<int:ticket_id>/reply/', ph_support.ticket_reply, name='powerhouse-ticket-reply'),
+    path('powerhouse/tickets/<int:ticket_id>/close/', ph_support.ticket_close, name='powerhouse-ticket-close'),
+    path('powerhouse/tickets/<int:ticket_id>/assign/', ph_support.ticket_assign, name='powerhouse-ticket-assign'),
+    
+    # Payment Modes
+    path('powerhouse/payment-modes/', ph_payment.payment_mode_list_create, name='powerhouse-payment-list'),
+    path('powerhouse/payment-modes/<int:payment_id>/', ph_payment.payment_mode_detail, name='powerhouse-payment-detail'),
+    path('powerhouse/payment-modes/<int:payment_id>/toggle/', ph_payment.payment_mode_toggle, name='powerhouse-payment-toggle'),
+    
+    # Super Settings
+    path('powerhouse/settings/', ph_settings.settings_list, name='powerhouse-settings-list'),
+    path('powerhouse/settings/<int:user_id>/', ph_settings.settings_detail, name='powerhouse-settings-detail'),
+    path('powerhouse/settings/<int:user_id>/create/', ph_settings.settings_create, name='powerhouse-settings-create'),
+    
+    # Site Content (Powerhouse)
+    path('powerhouse/content/', ph_content.content_list, name='powerhouse-content-list'),
+    path('powerhouse/content/<str:key>/', ph_content.content_detail, name='powerhouse-content-detail'),
+    
+    # Bonus Rules (Powerhouse)
+    path('powerhouse/bonus-rules/', ph_bonus_rule.bonus_rule_list_create, name='powerhouse-bonus-rule-list'),
+    path('powerhouse/bonus-rules/<int:rule_id>/', ph_bonus_rule.bonus_rule_detail, name='powerhouse-bonus-rule-detail'),
+    path('powerhouse/bonus-rules/<int:rule_id>/toggle/', ph_bonus_rule.bonus_rule_toggle, name='powerhouse-bonus-rule-toggle'),
+    
     # =============================================================================
-    # COINS
+    # SUPER ROUTES
     # =============================================================================
-    path('coins/mint/', views.CoinMintView.as_view()),
-    path('coins/mint', views.CoinMintView.as_view()),
-    path('coins/transfer/', views.CoinTransferView.as_view()),
-    path('coins/transfer', views.CoinTransferView.as_view()),
-    path('coins/transactions/', views.CoinTransactionListView.as_view()),
-    path('coins/transactions', views.CoinTransactionListView.as_view()),
-    path('coins/transactions/export/', views.ExportTransactionsView.as_view()),
-    path('coins/transactions/export', views.ExportTransactionsView.as_view()),
-
+    # Dashboard
+    path('super/dashboard', su_dashboard.dashboard_stats, name='super-dashboard'),
+    
+    # Master management
+    path('super/masters/', su_master.master_list_create, name='super-master-list'),
+    path('super/masters/<int:user_id>/', su_master.master_detail, name='super-master-detail'),
+    path('super/masters/<int:user_id>/suspend/', su_master.master_suspend, name='super-master-suspend'),
+    path('super/masters/<int:user_id>/activate/', su_master.master_activate, name='super-master-activate'),
+    
+    # User management
+    path('super/users/', su_user.user_list_create, name='super-user-list'),
+    path('super/users/<int:user_id>/', su_user.user_detail, name='super-user-detail'),
+    path('super/users/<int:user_id>/suspend/', su_user.user_suspend, name='super-user-suspend'),
+    path('super/users/<int:user_id>/activate/', su_user.user_activate, name='super-user-activate'),
+    
+    # Statements
+    path('super/statements/account/', su_statement.account_statement, name='super-account-statement'),
+    path('super/statements/bonus/', su_statement.bonus_statement, name='super-bonus-statement'),
+    
+    # Client Requests
+    path('super/requests/deposit/', su_request.deposit_list, name='super-deposit-list'),
+    path('super/requests/withdraw/', su_request.withdraw_list, name='super-withdraw-list'),
+    path('super/requests/total-dw/', su_request.total_dw, name='super-total-dw'),
+    path('super/requests/master-dw/', su_request.master_dw, name='super-master-dw'),
+    path('super/requests/<int:request_id>/approve/', su_request.approve_request, name='super-request-approve'),
+    path('super/requests/<int:request_id>/reject/', su_request.reject_request, name='super-request-reject'),
+    
+    # KYC Management
+    path('super/kyc/', su_kyc.kyc_list, name='super-kyc-list'),
+    path('super/kyc/<int:kyc_id>/', su_kyc.kyc_detail, name='super-kyc-detail'),
+    path('super/kyc/<int:kyc_id>/approve/', su_kyc.kyc_approve, name='super-kyc-approve'),
+    path('super/kyc/<int:kyc_id>/reject/', su_kyc.kyc_reject, name='super-kyc-reject'),
+    
+    # Support Tickets
+    path('super/tickets/', su_support.ticket_list, name='super-ticket-list'),
+    path('super/tickets/<int:ticket_id>/', su_support.ticket_detail, name='super-ticket-detail'),
+    path('super/tickets/<int:ticket_id>/reply/', su_support.ticket_reply, name='super-ticket-reply'),
+    path('super/tickets/<int:ticket_id>/close/', su_support.ticket_close, name='super-ticket-close'),
+    
+    # Payment Modes
+    path('super/payment-modes/', su_payment.payment_mode_list_create, name='super-payment-list'),
+    path('super/payment-modes/<int:payment_id>/', su_payment.payment_mode_detail, name='super-payment-detail'),
+    path('super/payment-modes/<int:payment_id>/toggle/', su_payment.payment_mode_toggle, name='super-payment-toggle'),
+    
     # =============================================================================
-    # TRANSACTIONS - DEPOSITS
+    # MASTER ROUTES
     # =============================================================================
-    path('transactions/deposits/', views.DepositListCreateView.as_view()),
-    path('transactions/deposits', views.DepositListCreateView.as_view()),
-    path('transactions/deposits/<int:pk>/approve/', views.DepositApproveView.as_view()),
-    path('transactions/deposits/<int:pk>/approve', views.DepositApproveView.as_view()),
-    path('transactions/deposits/<int:pk>/reject/', views.DepositRejectView.as_view()),
-    path('transactions/deposits/<int:pk>/reject', views.DepositRejectView.as_view()),
-
+    # Dashboard
+    path('master/dashboard', ma_dashboard.dashboard_stats, name='master-dashboard'),
+    
+    # User management
+    path('master/users/', ma_user.user_list_create, name='master-user-list'),
+    path('master/users/<int:user_id>/', ma_user.user_detail, name='master-user-detail'),
+    path('master/users/<int:user_id>/suspend/', ma_user.user_suspend, name='master-user-suspend'),
+    path('master/users/<int:user_id>/activate/', ma_user.user_activate, name='master-user-activate'),
+    
+    # Statements
+    path('master/statements/account/', ma_statement.account_statement, name='master-account-statement'),
+    path('master/statements/bonus/', ma_statement.bonus_statement, name='master-bonus-statement'),
+    
+    # Client Requests
+    path('master/requests/deposit/', ma_request.deposit_list, name='master-deposit-list'),
+    path('master/requests/withdraw/', ma_request.withdraw_list, name='master-withdraw-list'),
+    path('master/requests/total-dw/', ma_request.total_dw, name='master-total-dw'),
+    path('master/requests/<int:request_id>/approve/', ma_request.approve_request, name='master-request-approve'),
+    path('master/requests/<int:request_id>/reject/', ma_request.reject_request, name='master-request-reject'),
+    
+    # Profit Loss
+    path('master/profit-loss/sports/', ma_profit.profit_loss_sports, name='master-pl-sports'),
+    path('master/profit-loss/client/', ma_profit.profit_loss_client, name='master-pl-client'),
+    path('master/profit-loss/winners/', ma_profit.top_winners, name='master-top-winners'),
+    
+    # Client Activity Log
+    path('master/activity/', ma_activity.activity_log_list, name='master-activity-list'),
+    path('master/activity/<int:user_id>/', ma_activity.user_activity_log, name='master-user-activity'),
+    
+    # Profile
+    path('master/profile/', ma_profile.profile, name='master-profile'),
+    path('master/profile/change-password/', ma_profile.change_password, name='master-change-password'),
+    
+    # Payment Modes
+    path('master/payment-modes/', ma_payment.payment_mode_list_create, name='master-payment-list'),
+    path('master/payment-modes/<int:payment_id>/', ma_payment.payment_mode_detail, name='master-payment-detail'),
+    path('master/payment-modes/<int:payment_id>/toggle/', ma_payment.payment_mode_toggle, name='master-payment-toggle'),
+    
     # =============================================================================
-    # TRANSACTIONS - WITHDRAWALS
+    # USER ROUTES
     # =============================================================================
-    path('transactions/withdrawals/', views.WithdrawalListCreateView.as_view()),
-    path('transactions/withdrawals', views.WithdrawalListCreateView.as_view()),
-    path('transactions/withdrawals/<int:pk>/approve/', views.WithdrawalApproveView.as_view()),
-    path('transactions/withdrawals/<int:pk>/approve', views.WithdrawalApproveView.as_view()),
-    path('transactions/withdrawals/<int:pk>/reject/', views.WithdrawalRejectView.as_view()),
-    path('transactions/withdrawals/<int:pk>/reject', views.WithdrawalRejectView.as_view()),
-
-    # =============================================================================
-    # BETS
-    # =============================================================================
-    path('bets/', views.BetListCreateView.as_view()),
-    path('bets', views.BetListCreateView.as_view()),
-    path('bets/export/', views.ExportBetsView.as_view()),
-    path('bets/export', views.ExportBetsView.as_view()),
-    path('bets/<int:pk>/settle/', views.BetSettleView.as_view()),
-    path('bets/<int:pk>/settle', views.BetSettleView.as_view()),
-    path('bets/<int:pk>/cancel/', views.BetCancelView.as_view()),
-    path('bets/<int:pk>/cancel', views.BetCancelView.as_view()),
-
-    # =============================================================================
-    # GAMES
-    # =============================================================================
-    path('games/categories/', views.CategoryListView.as_view()),
-    path('games/categories', views.CategoryListView.as_view()),
-    path('games/admin/categories/', views.CategoryAdminView.as_view()),
-    path('games/admin/categories', views.CategoryAdminView.as_view()),
-    path('games/admin/categories/<int:pk>/', views.CategoryAdminView.as_view()),
-    path('games/admin/categories/<int:pk>', views.CategoryAdminView.as_view()),
-    path('games/providers/', views.ProviderListView.as_view()),
-    path('games/providers', views.ProviderListView.as_view()),
-    path('games/admin/all/', views.AdminGameListView.as_view()),
-    path('games/admin/all', views.AdminGameListView.as_view()),
-    path('games/admin/games/', views.AdminGameCreateUpdateView.as_view()),
-    path('games/admin/games', views.AdminGameCreateUpdateView.as_view()),
-    path('games/admin/games/<int:pk>/', views.AdminGameCreateUpdateView.as_view()),
-    path('games/admin/games/<int:pk>', views.AdminGameCreateUpdateView.as_view()),
-    path('games/admin/providers/', views.ProviderAdminView.as_view()),
-    path('games/admin/providers', views.ProviderAdminView.as_view()),
-    path('games/admin/providers/<int:pk>/', views.ProviderAdminView.as_view()),
-    path('games/admin/providers/<int:pk>', views.ProviderAdminView.as_view()),
-    path('games/<int:pk>/launch/', views.GameLaunchView.as_view()),
-    path('games/<int:pk>/launch', views.GameLaunchView.as_view()),
-    path('games/<slug:slug>/launch/', views.GameLaunchView.as_view()),
-    path('games/<slug:slug>/launch', views.GameLaunchView.as_view()),
-    path('games/<int:pk>/', views.GameDetailView.as_view()),
-    path('games/<int:pk>', views.GameDetailView.as_view()),
-    path('games/<slug:slug>/', views.GameDetailView.as_view()),
-    path('games/<slug:slug>', views.GameDetailView.as_view()),
-    path('games/', views.GameListView.as_view()),
-    path('games', views.GameListView.as_view()),
-
-    # =============================================================================
-    # KYC
-    # =============================================================================
-    path('kyc/upload/', views.KYCUploadView.as_view()),
-    path('kyc/upload', views.KYCUploadView.as_view()),
-    path('kyc/status/', views.KYCStatusView.as_view()),
-    path('kyc/status', views.KYCStatusView.as_view()),
-    path('kyc/pending/', views.KYCPendingView.as_view()),
-    path('kyc/pending', views.KYCPendingView.as_view()),
-    path('kyc/<int:pk>/approve/', views.KYCApproveRejectView.as_view(), {'action': 'approve'}),
-    path('kyc/<int:pk>/approve', views.KYCApproveRejectView.as_view(), {'action': 'approve'}),
-    path('kyc/<int:pk>/reject/', views.KYCApproveRejectView.as_view(), {'action': 'reject'}),
-    path('kyc/<int:pk>/reject', views.KYCApproveRejectView.as_view(), {'action': 'reject'}),
-
-    # =============================================================================
-    # SUPPORT / TICKETS
-    # =============================================================================
-    path('support/tickets/', views.TicketListCreateView.as_view()),
-    path('support/tickets', views.TicketListCreateView.as_view()),
-    path('support/tickets/<int:pk>/reply/', views.TicketReplyView.as_view()),
-    path('support/tickets/<int:pk>/reply', views.TicketReplyView.as_view()),
-    path('support/tickets/<int:pk>/close/', views.TicketCloseView.as_view()),
-    path('support/tickets/<int:pk>/close', views.TicketCloseView.as_view()),
-
-    # =============================================================================
-    # ADMIN DASHBOARD
-    # =============================================================================
-    path('dashboard/admin-stats/', views.AdminDashboardStatsView.as_view()),
-    path('dashboard/admin-stats', views.AdminDashboardStatsView.as_view()),
-
-    # =============================================================================
-    # CONFIG - SYSTEM
-    # =============================================================================
-    path('config/system/', views.SystemConfigView.as_view()),
-    path('config/system', views.SystemConfigView.as_view()),
-
-    # =============================================================================
-    # CONFIG - BANNERS
-    # =============================================================================
-    path('config/banners/', views.PromoBannerListView.as_view()),
-    path('config/banners', views.PromoBannerListView.as_view()),
-
-    # =============================================================================
-    # CONFIG - PAYMENT METHODS
-    # =============================================================================
-    path('config/payment-methods/', views.PaymentMethodListCreateView.as_view()),
-    path('config/payment-methods', views.PaymentMethodListCreateView.as_view()),
-    path('config/payment-methods/<int:pk>/', views.PaymentMethodUpdateView.as_view()),
-    path('config/payment-methods/<int:pk>', views.PaymentMethodUpdateView.as_view()),
-
-    # =============================================================================
-    # CONFIG - BONUS RULES
-    # =============================================================================
-    path('config/bonus-rules/', views.BonusRuleListCreateView.as_view()),
-    path('config/bonus-rules', views.BonusRuleListCreateView.as_view()),
-
-    # =============================================================================
-    # CONFIG - LIMITS
-    # =============================================================================
-    path('config/limits/', views.LimitListCreateView.as_view()),
-    path('config/limits', views.LimitListCreateView.as_view()),
-
-    # =============================================================================
-    # USER STATS (for user dashboard)
-    # =============================================================================
-    path('users/me/stats/', views.UserStatsView.as_view()),
-    path('users/me/stats', views.UserStatsView.as_view()),
-
-    # =============================================================================
-    # USER BONUSES
-    # =============================================================================
-    path('bonuses/my/', views.UserBonusesView.as_view()),
-    path('bonuses/my', views.UserBonusesView.as_view()),
-    path('bonuses/<int:pk>/claim/', views.ClaimBonusView.as_view()),
-    path('bonuses/<int:pk>/claim', views.ClaimBonusView.as_view()),
-    path('bonuses/redeem-promo/', views.RedeemPromoCodeView.as_view()),
-    path('bonuses/redeem-promo', views.RedeemPromoCodeView.as_view()),
-
-    # =============================================================================
-    # PROMO CODES
-    # =============================================================================
-    path('promo-codes/', views.PromoCodeListView.as_view()),
-    path('promo-codes', views.PromoCodeListView.as_view()),
-
-    # =============================================================================
-    # USER REFERRALS
-    # =============================================================================
-    path('referrals/my/', views.UserReferralsView.as_view()),
-    path('referrals/my', views.UserReferralsView.as_view()),
-
-    # =============================================================================
-    # FAVORITES
-    # =============================================================================
-    path('favorites/', views.FavoritesView.as_view()),
-    path('favorites', views.FavoritesView.as_view()),
-    path('favorites/<str:game_id>/', views.FavoriteDeleteView.as_view()),
-    path('favorites/<str:game_id>', views.FavoriteDeleteView.as_view()),
-
-    # =============================================================================
-    # USER SETTINGS
-    # =============================================================================
-    path('users/me/settings/', views.UserSettingsView.as_view()),
-    path('users/me/settings', views.UserSettingsView.as_view()),
-
-    # =============================================================================
-    # USER PASSWORD CHANGE
-    # =============================================================================
-    path('users/me/password/', views.UserPasswordChangeView.as_view()),
-    path('users/me/password', views.UserPasswordChangeView.as_view()),
-
-    # =============================================================================
-    # PUBLIC APIs (No Auth Required)
-    # =============================================================================
-    path('public/testimonials/', views.TestimonialListView.as_view()),
-    path('public/testimonials', views.TestimonialListView.as_view()),
-    path('public/live-wins/', views.LiveWinsView.as_view()),
-    path('public/live-wins', views.LiveWinsView.as_view()),
-    path('public/stats/', views.PlatformStatsView.as_view()),
-    path('public/stats', views.PlatformStatsView.as_view()),
-
-    # =============================================================================
-    # REFERRAL TIERS
-    # =============================================================================
-    path('config/referral-tiers/', views.ReferralTierListView.as_view()),
-    path('config/referral-tiers', views.ReferralTierListView.as_view()),
-
-    # =============================================================================
-    # POWERHOUSE APIs (Root Level - Platform Owner)
-    # =============================================================================
-    path('powerhouse/stats/', views.PowerHouseDashboardStatsView.as_view()),
-    path('powerhouse/stats', views.PowerHouseDashboardStatsView.as_view()),
-    path('powerhouse/superadmins/', views.PowerHouseSuperAdminListView.as_view()),
-    path('powerhouse/superadmins', views.PowerHouseSuperAdminListView.as_view()),
-    path('powerhouse/superadmins/create/', views.PowerHouseCreateSuperAdminView.as_view()),
-    path('powerhouse/superadmins/create', views.PowerHouseCreateSuperAdminView.as_view()),
-    path('powerhouse/mint/', views.PowerHouseMintCoinsView.as_view()),
-    path('powerhouse/mint', views.PowerHouseMintCoinsView.as_view()),
-    path('powerhouse/emergency-suspend/', views.PowerHouseEmergencySuspendView.as_view()),
-    path('powerhouse/emergency-suspend', views.PowerHouseEmergencySuspendView.as_view()),
-    path('powerhouse/audit-logs/', views.PowerHouseAuditLogsView.as_view()),
-    path('powerhouse/audit-logs', views.PowerHouseAuditLogsView.as_view()),
-    path('powerhouse/global-wallets/', views.PowerHouseGlobalWalletsView.as_view()),
-    path('powerhouse/global-wallets', views.PowerHouseGlobalWalletsView.as_view()),
-    path('powerhouse/users/<int:pk>/suspend/', views.PowerHouseSuspendUserView.as_view()),
-    path('powerhouse/users/<int:pk>/suspend', views.PowerHouseSuspendUserView.as_view()),
-
-    # =============================================================================
-    # SUPERADMIN APIs (Platform Management)
-    # =============================================================================
-    path('superadmin/stats/', views.SuperAdminDashboardStatsView.as_view()),
-    path('superadmin/stats', views.SuperAdminDashboardStatsView.as_view()),
-    path('superadmin/masters/', views.SuperAdminMasterListView.as_view()),
-    path('superadmin/masters', views.SuperAdminMasterListView.as_view()),
-    path('superadmin/masters/create/', views.SuperAdminCreateMasterView.as_view()),
-    path('superadmin/masters/create', views.SuperAdminCreateMasterView.as_view()),
-    path('superadmin/masters/<int:pk>/limits/', views.SuperAdminSetMasterLimitsView.as_view()),
-    path('superadmin/masters/<int:pk>/limits', views.SuperAdminSetMasterLimitsView.as_view()),
-    path('superadmin/masters/<int:pk>/suspend/', views.SuperAdminSuspendMasterView.as_view()),
-    path('superadmin/masters/<int:pk>/suspend', views.SuperAdminSuspendMasterView.as_view()),
-    path('superadmin/transfer/', views.SuperAdminTransferCoinsView.as_view()),
-    path('superadmin/transfer', views.SuperAdminTransferCoinsView.as_view()),
-    path('superadmin/reports/', views.SuperAdminReportsView.as_view()),
-    path('superadmin/reports', views.SuperAdminReportsView.as_view()),
-
-    # =============================================================================
-    # MASTER APIs (Agent/Operator)
-    # =============================================================================
-    path('master/stats/', views.MasterDashboardStatsView.as_view()),
-    path('master/stats', views.MasterDashboardStatsView.as_view()),
-    path('master/users/', views.MasterUserListView.as_view()),
-    path('master/users', views.MasterUserListView.as_view()),
-    path('master/users/create/', views.MasterCreateUserView.as_view()),
-    path('master/users/create', views.MasterCreateUserView.as_view()),
-    path('master/users/<int:pk>/suspend/', views.MasterSuspendUserView.as_view()),
-    path('master/users/<int:pk>/suspend', views.MasterSuspendUserView.as_view()),
-    path('master/users/<int:pk>/password/', views.MasterResetUserPasswordView.as_view()),
-    path('master/users/<int:pk>/password', views.MasterResetUserPasswordView.as_view()),
-    path('master/users/<int:pk>/betting-limit/', views.MasterSetUserBettingLimitView.as_view()),
-    path('master/users/<int:pk>/betting-limit', views.MasterSetUserBettingLimitView.as_view()),
-    path('master/users/<int:pk>/deposit/', views.MasterDepositForUserView.as_view()),
-    path('master/users/<int:pk>/deposit', views.MasterDepositForUserView.as_view()),
-    path('master/users/<int:pk>/withdraw/', views.MasterWithdrawForUserView.as_view()),
-    path('master/users/<int:pk>/withdraw', views.MasterWithdrawForUserView.as_view()),
-    path('master/users/<int:pk>/bets/', views.MasterUserBetHistoryView.as_view()),
-    path('master/users/<int:pk>/bets', views.MasterUserBetHistoryView.as_view()),
+    # Dashboard
+    path('user/dashboard', us_dashboard.dashboard_stats, name='user-dashboard'),
+    
+    # Account Statement
+    path('user/statements/account/', us_statement.account_statement, name='user-account-statement'),
+    
+    # My Bets
+    path('user/bets/', us_bet.my_bets, name='user-bets'),
+    path('user/bets/<int:bet_id>/', us_bet.bet_detail, name='user-bet-detail'),
+    
+    # Profit Loss
+    path('user/profit-loss/', us_profit.profit_loss, name='user-profit-loss'),
+    
+    # Change Password
+    path('user/change-password/', us_password.change_password, name='user-change-password'),
+    
+    # Activity Log
+    path('user/activity/', us_activity.activity_log, name='user-activity'),
+    
+    # Results
+    path('user/results/', us_result.results, name='user-results'),
+    
+    # Deposit
+    path('user/deposit/', us_deposit.deposit, name='user-deposit'),
+    path('user/deposit/payment-modes/', us_deposit.available_payment_modes, name='user-deposit-payment-modes'),
+    
+    # Withdraw
+    path('user/withdraw/', us_withdraw.withdraw, name='user-withdraw'),
+    path('user/withdraw/payment-modes/', us_withdraw.my_payment_modes, name='user-withdraw-payment-modes'),
+    path('user/withdraw/payment-modes/<int:payment_id>/', us_withdraw.delete_payment_mode, name='user-delete-payment-mode'),
+    
+    # Transactions
+    path('user/transactions/', us_transaction.transactions, name='user-transactions'),
+    
+    # Profile, Referral, Bonuses, Tickets
+    path('user/profile/', us_profile.profile, name='user-profile'),
+    path('user/referral/', us_referral.referral, name='user-referral'),
+    path('user/bonuses/', us_bonus.bonus_list, name='user-bonuses'),
+    path('user/bonuses/apply/', us_bonus.apply_promo, name='user-bonuses-apply'),
+    path('user/bonuses/<int:bonus_id>/claim/', us_bonus.claim_bonus, name='user-bonus-claim'),
+    path('user/tickets/', us_tickets.ticket_list_or_create, name='user-tickets-list'),
+    path('user/tickets/<int:ticket_id>/', us_tickets.ticket_detail, name='user-ticket-detail'),
+    path('user/tickets/<int:ticket_id>/reply/', us_tickets.ticket_reply, name='user-ticket-reply'),
+    path('user/settings/', us_settings.user_settings, name='user-settings'),
+    path('user/kyc/', us_kyc.submit_kyc, name='user-kyc-submit'),
+    # Live chat (any authenticated user)
+    path('user/chat/partners/', chat_views.chat_partners, name='chat-partners'),
+    path('user/chat/history/', chat_views.chat_history, name='chat-history'),
 ]
