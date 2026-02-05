@@ -9,3 +9,4 @@ from .result_views import *
 from .deposit_views import *
 from .withdraw_views import *
 from .transaction_views import *
+from .game_views import *

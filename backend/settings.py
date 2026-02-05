@@ -173,3 +173,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom User Model
 AUTH_USER_MODEL = 'core.User'
+
+# Game provider: fallback when provider.api_secret is blank (override via env in production)
+GAME_PROVIDER_API_SECRET = os.environ.get('GAME_PROVIDER_API_SECRET', '4d45bba519ac2d39d1618f57120b84b7')
+
+# Site domain for game launch payload (provider whitelist); override via env
+SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'https://kingxclub.com')
+# SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'http://127.0.0.1:8000')

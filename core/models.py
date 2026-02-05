@@ -248,6 +248,8 @@ class GameProvider(models.Model):
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=50, unique=True)
     api_endpoint = models.URLField(blank=True)
+    api_secret = models.CharField(max_length=255, blank=True, help_text='Secret for AES encryption with provider')
+    api_token = models.CharField(max_length=255, blank=True, help_text='Fixed token sent in launch payload; provider may use for callbacks')
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -278,6 +280,7 @@ class Game(models.Model):
     
     provider = models.ForeignKey(GameProvider, on_delete=models.CASCADE, related_name='games')
     name = models.CharField(max_length=255)
+    provider_game_uid = models.CharField(max_length=64, blank=True, db_index=True, help_text='Provider game identifier (hash) for launch URL')
     game_type = models.CharField(max_length=20, choices=GameType.choices)
     min_bet = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('10.00'))
     max_bet = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('100000.00'))
@@ -289,7 +292,10 @@ class Game(models.Model):
         verbose_name = 'Game'
         verbose_name_plural = 'Games'
         ordering = ['name']
-    
+        constraints = [
+            models.UniqueConstraint(fields=['provider', 'provider_game_uid'], condition=models.Q(provider_game_uid__gt=''), name='unique_provider_game_uid'),
+        ]
+
     def __str__(self):
         return f"{self.name} ({self.provider.name})"
 

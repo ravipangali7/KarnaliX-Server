@@ -13,6 +13,7 @@ from core.views.auth_views import (
 
 # Public views (unauthenticated)
 from core.views import public_views as pub_views
+from core.views import game_callback_views as game_callback_views
 
 # Powerhouse views
 from core.views.powerhouse import dashboard_views as ph_dashboard
@@ -52,6 +53,7 @@ from core.views.master import payment_views as ma_payment
 
 # User views
 from core.views.user import dashboard_views as us_dashboard
+from core.views.user import game_views as us_game
 from core.views.user import statement_views as us_statement
 from core.views.user import bet_views as us_bet
 from core.views.user import profit_loss_views as us_profit
@@ -90,6 +92,7 @@ urlpatterns = [
     path('public/providers/', pub_views.public_provider_list, name='public-providers'),
     path('public/categories/', pub_views.public_category_list, name='public-categories'),
     path('public/content/', pub_views.public_content, name='public-content'),
+    path('callback/', game_callback_views.game_callback, name='game-callback'),
     
     # =============================================================================
     # POWERHOUSE ROUTES
@@ -265,6 +268,7 @@ urlpatterns = [
     # =============================================================================
     # Dashboard
     path('user/dashboard', us_dashboard.dashboard_stats, name='user-dashboard'),
+    path('user/games/<int:game_id>/launch/', us_game.launch_game, name='user-launch-game'),
     
     # Account Statement
     path('user/statements/account/', us_statement.account_statement, name='user-account-statement'),
