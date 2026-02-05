@@ -102,7 +102,6 @@ def launch_game(request, game_id):
         "token": token,
         "timestamp": timestamp,
         "payload": encrypted_payload,
-        "domain_url": domain_url,
     }
     query = urlencode(params)
     base_url = provider.api_endpoint.rstrip("/")
