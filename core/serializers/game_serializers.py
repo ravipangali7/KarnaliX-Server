@@ -32,7 +32,7 @@ class GameSerializer(serializers.ModelSerializer):
         model = Game
         fields = [
             'id', 'provider', 'provider_name', 'name', 'game_type',
-            'min_bet', 'max_bet', 'rtp', 'status', 'created_at'
+            'min_bet', 'max_bet', 'rtp', 'status', 'image', 'created_at'
         ]
 
 
@@ -40,7 +40,7 @@ class GameCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating games."""
     class Meta:
         model = Game
-        fields = ['provider', 'name', 'provider_game_uid', 'game_type', 'min_bet', 'max_bet', 'rtp', 'status']
+        fields = ['provider', 'name', 'provider_game_uid', 'game_type', 'min_bet', 'max_bet', 'rtp', 'status', 'image']
 
 
 class BetSerializer(serializers.ModelSerializer):

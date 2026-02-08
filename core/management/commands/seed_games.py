@@ -3,8 +3,11 @@ Seed games from provider list (name + provider_game_uid).
 Idempotent: use update_or_create by (provider, provider_game_uid).
 """
 from decimal import Decimal
+from pathlib import Path
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.core.files import File
 from core.models import GameProvider, Game
 
 
@@ -217,6 +220,43 @@ Keno Extra Bet	191d02a6e852cd18ce1dd4d175e96cd6
 Penalty Kick	446de3502193f08cdf0c17bf0791eb41"""
 
 
+def _normalize_stem(s: str) -> str:
+    """Normalize filename stem for matching: lowercase, strip, remove '_(1)' suffix."""
+    s = s.strip().lower()
+    if s.endswith("_(1)"):
+        s = s[:-4]
+    return s
+
+
+def _build_image_lookup(images_dir: Path) -> dict:
+    """Build mapping from possible name keys to file path for *.webp in images_dir."""
+    lookup = {}
+    if not images_dir.is_dir():
+        return lookup
+    for path in images_dir.glob("*.webp"):
+        stem = path.stem
+        lookup[stem] = path
+        lookup[stem.replace(" ", "-")] = path
+        lookup[stem.replace("-", " ")] = path
+        norm = _normalize_stem(stem)
+        lookup[norm] = path
+    return lookup
+
+
+def _find_image_path(lookup: dict, game_name: str) -> Path | None:
+    """Return path to image file for game_name, or None if not found."""
+    if not lookup:
+        return None
+    path = lookup.get(game_name)
+    if path is not None:
+        return path
+    path = lookup.get(game_name.replace(" ", "-"))
+    if path is not None:
+        return path
+    path = lookup.get(_normalize_stem(game_name))
+    return path
+
+
 def infer_game_type(name: str) -> str:
     """Infer game_type from name (default SLOT)."""
     n = name.upper()
@@ -267,6 +307,18 @@ class Command(BaseCommand):
             default="",
             help="Provider API token sent in launch payload (e.g. from provider)",
         )
+        parser.add_argument(
+            "--fresh",
+            action="store_true",
+            help="Delete all games for this provider before seeding.",
+        )
+        default_images_dir = Path(settings.BASE_DIR).resolve().parent / "jiliwebp"
+        parser.add_argument(
+            "--images-dir",
+            type=Path,
+            default=default_images_dir,
+            help=f"Directory containing game images (default: {default_images_dir})",
+        )
 
     def handle(self, *args, **options):
         provider_code = options["provider_code"]
@@ -297,6 +349,17 @@ class Command(BaseCommand):
             provider.save(update_fields=update_fields)
 
         self.stdout.write(f"Using provider: {provider.name} (code={provider.code})\n")
+
+        if options["fresh"]:
+            deleted_count, _ = Game.objects.filter(provider=provider).delete()
+            self.stdout.write(self.style.WARNING(f"--fresh: deleted {deleted_count} games for this provider.\n"))
+
+        images_dir = Path(options["images_dir"]).resolve()
+        image_lookup = _build_image_lookup(images_dir)
+        if image_lookup:
+            self.stdout.write(f"Using images from: {images_dir} ({len(image_lookup)} entries)\n")
+        else:
+            self.stdout.write(self.style.WARNING(f"No *.webp found in {images_dir}; games will have no image.\n"))
 
         lines = [ln.strip() for ln in GAMES_RAW.strip().splitlines() if ln.strip()]
         created = 0
@@ -329,5 +392,11 @@ class Command(BaseCommand):
                 created += 1
             else:
                 updated += 1
+
+            image_path = _find_image_path(image_lookup, name)
+            if image_path is not None and image_path.is_file():
+                save_name = f"{uid}.webp"
+                with open(image_path, "rb") as f:
+                    game.image.save(save_name, File(f), save=True)
 
         self.stdout.write(self.style.SUCCESS(f"Done: {created} created, {updated} updated, total {created + updated} games."))

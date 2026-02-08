@@ -286,6 +286,7 @@ class Game(models.Model):
     max_bet = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('100000.00'))
     rtp = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('96.00'), help_text='Return to Player percentage')
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    image = models.ImageField(upload_to='game_images/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

@@ -25,14 +25,23 @@ class PaymentModeSerializer(serializers.ModelSerializer):
     """Serializer for payment modes."""
     username = serializers.CharField(source='user.username', read_only=True)
     owner_role = serializers.CharField(source='user.role', read_only=True)
-    
+    qr_image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = PaymentMode
         fields = [
             'id', 'user', 'username', 'owner_role', 'wallet_holder_name', 'type',
-            'wallet_phone', 'qr_image', 'account_details', 'status', 'created_at'
+            'wallet_phone', 'qr_image', 'qr_image_url', 'account_details', 'status', 'created_at'
         ]
         read_only_fields = ['user', 'created_at']
+
+    def get_qr_image_url(self, obj):
+        if not obj.qr_image:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.qr_image.url)
+        return obj.qr_image.url if obj.qr_image else None
 
 
 class PaymentModeCreateSerializer(serializers.ModelSerializer):

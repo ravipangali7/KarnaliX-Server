@@ -75,30 +75,55 @@ def deposit(request):
     
     elif request.method == 'POST':
         from decimal import Decimal
-        
-        amount = Decimal(str(request.data.get('amount', 0)))
-        payment_mode_id = request.data.get('payment_mode_id')
-        screenshot = request.data.get('screenshot')
-        remarks = request.data.get('remarks', '')
-        
+
+        # Support both JSON and multipart/form-data (for screenshot upload)
+        data = request.data
+        if hasattr(request, 'FILES') and request.FILES:
+            # Form data: fields may be in request.POST or request.data
+            payment_mode_id = data.get('payment_mode_id') or (request.POST.get('payment_mode_id') if request.POST else None)
+            remarks = data.get('remarks') or (request.POST.get('remarks', '') if request.POST else '')
+        else:
+            payment_mode_id = data.get('payment_mode_id')
+            remarks = data.get('remarks', '')
+
+        amount = Decimal(str(data.get('amount') or (request.POST.get('amount', 0) if request.POST else 0)))
+        screenshot_file = request.FILES.get('screenshot') if hasattr(request, 'FILES') else None
+
         if amount <= 0:
             return Response({'error': 'Amount must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Validate payment mode
+
+        if not screenshot_file:
+            return Response({'error': 'Payment screenshot is required. Please upload proof of payment.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate file type (image or PDF)
+        allowed_types = ('image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'application/pdf')
+        if screenshot_file.content_type not in allowed_types:
+            return Response({'error': 'Screenshot must be PNG, JPG, WEBP, or PDF (max 5MB).'}, status=status.HTTP_400_BAD_REQUEST)
+        if screenshot_file.size > 5 * 1024 * 1024:
+            return Response({'error': 'Screenshot size must be less than 5MB.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate payment mode: only accept numeric id from parent-configured PaymentMode
         payment_mode = None
-        if payment_mode_id:
+        if payment_mode_id is not None and payment_mode_id != '':
             try:
-                payment_mode = PaymentMode.objects.get(id=payment_mode_id, status='ACTIVE')
+                payment_mode_id_int = int(payment_mode_id)
+            except (TypeError, ValueError):
+                return Response({
+                    'error': 'Invalid payment mode. No payment methods are configured for your account; please contact your referrer.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                payment_mode = PaymentMode.objects.get(id=payment_mode_id_int, status='ACTIVE')
             except PaymentMode.DoesNotExist:
                 return Response({'error': 'Invalid payment mode'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Create deposit request
+
+        # Create deposit request with screenshot
         deposit_request = ClientRequest.objects.create(
             user=user,
             request_type='DEPOSIT',
             amount=amount,
             payment_mode=payment_mode,
-            remarks=remarks
+            remarks=remarks or '',
+            screenshot=screenshot_file
         )
         
         # Log activity
@@ -118,20 +143,49 @@ def deposit(request):
 def available_payment_modes(request):
     """
     Get available payment modes for deposit.
+    - If logged-in user is MASTER/SUPER/POWERHOUSE: include their own payment modes (so they can deposit).
+    - If logged-in user is USER (client): use parent then grandparent; fallback to referred_by if no parent.
     """
     user = request.user
-    
-    # Get payment modes from parent hierarchy (Master/Super/Powerhouse)
+
+    # One-time sync: set parent from referred_by when missing (so client sees master's payment methods)
+    if (
+        user.role == 'USER'
+        and user.parent is None
+        and getattr(user, 'referred_by_id', None)
+        and user.referred_by_id
+    ):
+        ref = user.referred_by
+        if ref and ref.role in ('POWERHOUSE', 'SUPER', 'MASTER'):
+            user.parent = ref
+            user.save(update_fields=['parent'])
+
     payment_modes = []
-    
+    source_users = []
+
+    # Hierarchy users (Master/Super/Powerhouse) see their own payment modes when depositing
+    if user.role in ('POWERHOUSE', 'SUPER', 'MASTER'):
+        source_users.append(user)
+    # Client users see their parent's (and grandparent's) payment modes
     if user.parent:
-        parent_modes = PaymentMode.objects.filter(user=user.parent, status='ACTIVE')
-        payment_modes.extend(parent_modes)
-        
-        # Also check grandparent
-        if user.parent.parent:
-            grandparent_modes = PaymentMode.objects.filter(user=user.parent.parent, status='ACTIVE')
-            payment_modes.extend(grandparent_modes)
-    
-    serializer = PaymentModeSerializer(payment_modes, many=True)
+        if user.parent not in source_users:
+            source_users.append(user.parent)
+        if user.parent.parent and user.parent.parent not in source_users:
+            source_users.append(user.parent.parent)
+    elif getattr(user, 'referred_by_id', None) and user.referred_by_id:
+        ref = user.referred_by
+        if ref and ref.role in ('POWERHOUSE', 'SUPER', 'MASTER'):
+            if ref not in source_users:
+                source_users.append(ref)
+            if ref.parent and ref.parent not in source_users:
+                source_users.append(ref.parent)
+
+    seen_ids = set()
+    for source in source_users:
+        for pm in PaymentMode.objects.filter(user=source, status='ACTIVE'):
+            if pm.id not in seen_ids:
+                seen_ids.add(pm.id)
+                payment_modes.append(pm)
+
+    serializer = PaymentModeSerializer(payment_modes, many=True, context={'request': request})
     return Response(serializer.data)
