@@ -195,6 +195,12 @@ def approve_request(request, request_id):
     
     if client_request.status != 'PENDING':
         return Response({'error': 'Request is not pending'}, status=status.HTTP_400_BAD_REQUEST)
+
+    pin = request.data.get('pin', '').strip()
+    if not request.user.pin:
+        return Response({'error': 'Your account has no PIN set. Please contact admin.'}, status=status.HTTP_400_BAD_REQUEST)
+    if pin != request.user.pin:
+        return Response({'error': 'Invalid PIN'}, status=status.HTTP_400_BAD_REQUEST)
     
     user = client_request.user
     balance_before = user.wallet_balance

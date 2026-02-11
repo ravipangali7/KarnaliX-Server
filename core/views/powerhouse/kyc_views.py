@@ -26,6 +26,8 @@ def kyc_list(request):
     status_filter = request.query_params.get('status')
     user_id = request.query_params.get('user_id')
     document_type = request.query_params.get('document_type')
+    date_from = request.query_params.get('date_from')
+    date_to = request.query_params.get('date_to')
     
     if status_filter:
         queryset = queryset.filter(status=status_filter)
@@ -33,6 +35,10 @@ def kyc_list(request):
         queryset = queryset.filter(user_id=user_id)
     if document_type:
         queryset = queryset.filter(document_type=document_type)
+    if date_from:
+        queryset = queryset.filter(submitted_at__date__gte=date_from)
+    if date_to:
+        queryset = queryset.filter(submitted_at__date__lte=date_to)
     
     # Summary
     summary = {

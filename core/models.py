@@ -55,6 +55,7 @@ class User(AbstractUser):
         default=Decimal('0.00')
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
+    pin = models.CharField(max_length=6, blank=True, help_text='6-digit PIN for confirmations; auto-generated on create')
     last_login_at = models.DateTimeField(null=True, blank=True)
     settings = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

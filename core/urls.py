@@ -106,12 +106,16 @@ urlpatterns = [
     path('powerhouse/supers/<int:user_id>/', ph_super.super_detail, name='powerhouse-super-detail'),
     path('powerhouse/supers/<int:user_id>/suspend/', ph_super.super_suspend, name='powerhouse-super-suspend'),
     path('powerhouse/supers/<int:user_id>/activate/', ph_super.super_activate, name='powerhouse-super-activate'),
+    path('powerhouse/supers/<int:user_id>/reset-password/', ph_super.super_reset_password, name='powerhouse-super-reset-password'),
+    path('powerhouse/supers/<int:user_id>/show-pin/', ph_super.super_show_pin, name='powerhouse-super-show-pin'),
     
     # Master management
     path('powerhouse/masters/', ph_master.master_list_create, name='powerhouse-master-list'),
     path('powerhouse/masters/<int:user_id>/', ph_master.master_detail, name='powerhouse-master-detail'),
     path('powerhouse/masters/<int:user_id>/suspend/', ph_master.master_suspend, name='powerhouse-master-suspend'),
     path('powerhouse/masters/<int:user_id>/activate/', ph_master.master_activate, name='powerhouse-master-activate'),
+    path('powerhouse/masters/<int:user_id>/reset-password/', ph_master.master_reset_password, name='powerhouse-master-reset-password'),
+    path('powerhouse/masters/<int:user_id>/show-pin/', ph_master.master_show_pin, name='powerhouse-master-show-pin'),
     
     # User management
     path('powerhouse/users/', ph_user.user_list_create, name='powerhouse-user-list'),
@@ -119,6 +123,8 @@ urlpatterns = [
     path('powerhouse/users/<int:user_id>/suspend/', ph_user.user_suspend, name='powerhouse-user-suspend'),
     path('powerhouse/users/<int:user_id>/activate/', ph_user.user_activate, name='powerhouse-user-activate'),
     path('powerhouse/users/<int:user_id>/adjust-balance/', ph_user.user_adjust_balance, name='powerhouse-user-adjust'),
+    path('powerhouse/users/<int:user_id>/reset-password/', ph_user.user_reset_password, name='powerhouse-user-reset-password'),
+    path('powerhouse/users/<int:user_id>/show-pin/', ph_user.user_show_pin, name='powerhouse-user-show-pin'),
     
     # Statements
     path('powerhouse/statements/account/', ph_statement.account_statement, name='powerhouse-account-statement'),
@@ -186,12 +192,16 @@ urlpatterns = [
     path('super/masters/<int:user_id>/', su_master.master_detail, name='super-master-detail'),
     path('super/masters/<int:user_id>/suspend/', su_master.master_suspend, name='super-master-suspend'),
     path('super/masters/<int:user_id>/activate/', su_master.master_activate, name='super-master-activate'),
+    path('super/masters/<int:user_id>/reset-password/', su_master.master_reset_password, name='super-master-reset-password'),
+    path('super/masters/<int:user_id>/show-pin/', su_master.master_show_pin, name='super-master-show-pin'),
     
     # User management
     path('super/users/', su_user.user_list_create, name='super-user-list'),
     path('super/users/<int:user_id>/', su_user.user_detail, name='super-user-detail'),
     path('super/users/<int:user_id>/suspend/', su_user.user_suspend, name='super-user-suspend'),
     path('super/users/<int:user_id>/activate/', su_user.user_activate, name='super-user-activate'),
+    path('super/users/<int:user_id>/reset-password/', su_user.user_reset_password, name='super-user-reset-password'),
+    path('super/users/<int:user_id>/show-pin/', su_user.user_show_pin, name='super-user-show-pin'),
     
     # Statements
     path('super/statements/account/', su_statement.account_statement, name='super-account-statement'),
@@ -233,6 +243,8 @@ urlpatterns = [
     path('master/users/<int:user_id>/', ma_user.user_detail, name='master-user-detail'),
     path('master/users/<int:user_id>/suspend/', ma_user.user_suspend, name='master-user-suspend'),
     path('master/users/<int:user_id>/activate/', ma_user.user_activate, name='master-user-activate'),
+    path('master/users/<int:user_id>/reset-password/', ma_user.user_reset_password, name='master-user-reset-password'),
+    path('master/users/<int:user_id>/show-pin/', ma_user.user_show_pin, name='master-user-show-pin'),
     
     # Statements
     path('master/statements/account/', ma_statement.account_statement, name='master-account-statement'),

@@ -53,7 +53,7 @@ def game_callback(request):
         if game:
             provider = game.provider
 
-    # Update user wallet
+    # Win/lose balance logic: set balance to provider's wallet_after; net effect = win_amount - bet_amount
     user.wallet_balance = wallet_after
     user.save(update_fields=["wallet_balance", "updated_at"])
 

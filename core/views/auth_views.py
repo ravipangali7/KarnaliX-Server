@@ -264,6 +264,10 @@ def register_view(request):
         parent=parent,
         status='ACTIVE',
     )
+    from core.serializers.user_serializers import generate_pin
+    if not user.pin:
+        user.pin = generate_pin()
+        user.save(update_fields=['pin'])
 
     # Log activity
     log_activity(user, 'LOGIN', request)

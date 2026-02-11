@@ -40,6 +40,8 @@ def user_list_create(request):
         status_filter = request.query_params.get('status')
         search = request.query_params.get('search')
         parent_id = request.query_params.get('parent_id')
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
         
         if status_filter:
             queryset = queryset.filter(status=status_filter)
@@ -49,6 +51,10 @@ def user_list_create(request):
             )
         if parent_id:
             queryset = queryset.filter(parent_id=parent_id)
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
         
         # Pagination
         page = request.query_params.get('page', 1)
@@ -174,3 +180,46 @@ def user_activate(request, user_id):
     target_user.status = 'ACTIVE'
     target_user.save()
     return Response({'message': 'User activated'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@super_required
+def user_reset_password(request, user_id):
+    """Reset password for a user in Super's hierarchy."""
+    user = request.user
+    try:
+        if user.role == 'POWERHOUSE':
+            target_user = User.objects.get(id=user_id)
+        else:
+            target_user = User.objects.get(
+                Q(id=user_id, role='USER') & (Q(parent=user) | Q(parent__parent=user))
+            )
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    new_password = request.data.get('new_password')
+    if not new_password or len(new_password) < 6:
+        return Response({'error': 'new_password required (min 6 characters)'}, status=status.HTTP_400_BAD_REQUEST)
+    target_user.set_password(new_password)
+    target_user.save(update_fields=['password'])
+    return Response({'message': 'Password reset successfully'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@super_required
+def user_show_pin(request, user_id):
+    """Return the user's PIN (for users in Super's hierarchy)."""
+    user = request.user
+    try:
+        if user.role == 'POWERHOUSE':
+            target_user = User.objects.get(id=user_id)
+        else:
+            target_user = User.objects.get(
+                Q(id=user_id, role='USER') & (Q(parent=user) | Q(parent__parent=user))
+            )
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    if not target_user.pin:
+        return Response({'error': 'No PIN set for this user'}, status=status.HTTP_404_NOT_FOUND)
+    return Response({'pin': target_user.pin})

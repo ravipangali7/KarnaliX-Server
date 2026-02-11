@@ -8,8 +8,9 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from core.models import User, WalletTransaction, ClientRequest, Bet, KYCVerification, SupportTicket, Game, GameProvider
+from core.models import User, WalletTransaction, ClientRequest, Bet, KYCVerification, SupportTicket, Game, GameProvider, Bonus
 from core.permissions import powerhouse_required
+from django.db.models.functions import TruncDate
 
 
 @api_view(['GET'])
@@ -76,6 +77,55 @@ def dashboard_stats(request):
     
     # Total balance
     total_balance = User.objects.aggregate(total=Sum('wallet_balance'))['total'] or 0
+
+    # Role-based balances
+    available_balance = request.user.wallet_balance
+    total_super_balance = User.objects.filter(role='SUPER').aggregate(total=Sum('wallet_balance'))['total'] or 0
+    total_master_balance = User.objects.filter(role='MASTER').aggregate(total=Sum('wallet_balance'))['total'] or 0
+    total_client_balance = User.objects.filter(role='USER').aggregate(total=Sum('wallet_balance'))['total'] or 0
+    total_active_user_balance = User.objects.filter(role='USER', status='ACTIVE').aggregate(total=Sum('wallet_balance'))['total'] or 0
+
+    # Users under masters (parent is MASTER)
+    master_child_ids = User.objects.filter(parent__role='MASTER').values_list('id', flat=True)
+    total_user_deposit_of_all_masters = ClientRequest.objects.filter(
+        user_id__in=master_child_ids, request_type='DEPOSIT', status='APPROVED'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    total_withdrawal_of_all_masters = ClientRequest.objects.filter(
+        user_id__in=master_child_ids, request_type='WITHDRAW', status='APPROVED'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    total_bonus_of_master = Bonus.objects.filter(user__parent__role='MASTER').aggregate(total=Sum('amount'))['total'] or 0
+    bet_under_masters = Bet.objects.filter(user_id__in=master_child_ids)
+    profit_loss_master = (bet_under_masters.aggregate(total=Sum('bet_amount'))['total'] or 0) - (
+        bet_under_masters.filter(result='WON').aggregate(total=Sum('win_amount'))['total'] or 0
+    )
+
+    # Chart: deposits/withdrawals by day (last 30 days)
+    chart_deposits = list(
+        ClientRequest.objects.filter(request_type='DEPOSIT', status='APPROVED', created_at__date__gte=last_30_days)
+        .annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(total=Sum('amount'))
+        .order_by('day')
+    )
+    chart_withdrawals = list(
+        ClientRequest.objects.filter(request_type='WITHDRAW', status='APPROVED', created_at__date__gte=last_30_days)
+        .annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(total=Sum('amount'))
+        .order_by('day')
+    )
+    dep_by_date = {item['day'].isoformat(): str(item['total']) for item in chart_deposits if item['day']}
+    w_by_date = {item['day'].isoformat(): str(item['total']) for item in chart_withdrawals if item['day']}
+    num_days = (today - last_30_days).days + 1
+    chart_data_filled = []
+    for i in range(num_days):
+        d = last_30_days + timedelta(days=i)
+        ds = d.isoformat()
+        chart_data_filled.append({
+            'date': ds,
+            'deposits': dep_by_date.get(ds, '0'),
+            'withdrawals': w_by_date.get(ds, '0'),
+        })
     
     return Response({
         'users': {
@@ -92,7 +142,17 @@ def dashboard_stats(request):
             'pending_deposits': pending_deposits,
             'pending_withdrawals': pending_withdrawals,
             'total_balance': str(total_balance),
+            'available_balance': str(available_balance),
+            'total_super_balance': str(total_super_balance),
+            'total_master_balance': str(total_master_balance),
+            'total_client_balance': str(total_client_balance),
+            'total_active_user_balance': str(total_active_user_balance),
+            'total_user_deposit_of_all_masters': str(total_user_deposit_of_all_masters),
+            'total_withdrawal_of_all_masters': str(total_withdrawal_of_all_masters),
+            'total_bonus_of_master': str(total_bonus_of_master),
+            'profit_loss_master': str(profit_loss_master),
         },
+        'chart_data': chart_data_filled,
         'bets': {
             'total_bets': total_bets,
             'total_bet_amount': str(total_bet_amount),

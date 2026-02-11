@@ -76,6 +76,12 @@ def withdraw(request):
     
     elif request.method == 'POST':
         from decimal import Decimal
+
+        pin = (request.data.get('pin') or '').strip()
+        if not user.pin:
+            return Response({'error': 'Your account has no PIN set. Please contact admin.'}, status=status.HTTP_400_BAD_REQUEST)
+        if pin != user.pin:
+            return Response({'error': 'Invalid PIN'}, status=status.HTTP_400_BAD_REQUEST)
         
         amount = Decimal(str(request.data.get('amount', 0)))
         payment_mode_id = request.data.get('payment_mode_id')

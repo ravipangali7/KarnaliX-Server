@@ -36,6 +36,9 @@ def master_list_create(request):
         # Filters
         status_filter = request.query_params.get('status')
         search = request.query_params.get('search')
+        parent_id = request.query_params.get('parent_id')
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
         
         if status_filter:
             queryset = queryset.filter(status=status_filter)
@@ -43,6 +46,12 @@ def master_list_create(request):
             queryset = queryset.filter(
                 Q(username__icontains=search) | Q(email__icontains=search)
             )
+        if parent_id:
+            queryset = queryset.filter(parent_id=parent_id)
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
         
         # Pagination
         page = request.query_params.get('page', 1)
@@ -146,3 +155,42 @@ def master_activate(request, user_id):
     master.status = 'ACTIVE'
     master.save()
     return Response({'message': 'Master user activated'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@super_required
+def master_reset_password(request, user_id):
+    """Reset password for a Master user in Super's hierarchy."""
+    user = request.user
+    try:
+        if user.role == 'POWERHOUSE':
+            master = User.objects.get(id=user_id, role='MASTER')
+        else:
+            master = User.objects.get(id=user_id, role='MASTER', parent=user)
+    except User.DoesNotExist:
+        return Response({'error': 'Master user not found'}, status=status.HTTP_404_NOT_FOUND)
+    new_password = request.data.get('new_password')
+    if not new_password or len(new_password) < 6:
+        return Response({'error': 'new_password required (min 6 characters)'}, status=status.HTTP_400_BAD_REQUEST)
+    master.set_password(new_password)
+    master.save(update_fields=['password'])
+    return Response({'message': 'Password reset successfully'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@super_required
+def master_show_pin(request, user_id):
+    """Return the Master user's PIN."""
+    user = request.user
+    try:
+        if user.role == 'POWERHOUSE':
+            master = User.objects.get(id=user_id, role='MASTER')
+        else:
+            master = User.objects.get(id=user_id, role='MASTER', parent=user)
+    except User.DoesNotExist:
+        return Response({'error': 'Master user not found'}, status=status.HTTP_404_NOT_FOUND)
+    if not master.pin:
+        return Response({'error': 'No PIN set for this user'}, status=status.HTTP_404_NOT_FOUND)
+    return Response({'pin': master.pin})

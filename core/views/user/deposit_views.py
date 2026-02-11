@@ -76,8 +76,15 @@ def deposit(request):
     elif request.method == 'POST':
         from decimal import Decimal
 
-        # Support both JSON and multipart/form-data (for screenshot upload)
+        # PIN confirmation required
         data = request.data
+        pin = (data.get('pin') or (request.POST.get('pin', '') if request.POST else '') or '').strip()
+        if not user.pin:
+            return Response({'error': 'Your account has no PIN set. Please contact admin.'}, status=status.HTTP_400_BAD_REQUEST)
+        if pin != user.pin:
+            return Response({'error': 'Invalid PIN'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Support both JSON and multipart/form-data (for screenshot upload)
         if hasattr(request, 'FILES') and request.FILES:
             # Form data: fields may be in request.POST or request.data
             payment_mode_id = data.get('payment_mode_id') or (request.POST.get('payment_mode_id') if request.POST else None)

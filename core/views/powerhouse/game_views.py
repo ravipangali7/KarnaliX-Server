@@ -120,6 +120,8 @@ def game_list_create(request):
         provider_id = request.query_params.get('provider_id')
         game_type = request.query_params.get('game_type')
         search = request.query_params.get('search')
+        date_from = request.query_params.get('date_from')
+        date_to = request.query_params.get('date_to')
         
         if status_filter:
             queryset = queryset.filter(status=status_filter)
@@ -129,6 +131,10 @@ def game_list_create(request):
             queryset = queryset.filter(game_type=game_type)
         if search:
             queryset = queryset.filter(name__icontains=search)
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
         
         # Pagination
         page = request.query_params.get('page', 1)
@@ -145,6 +151,7 @@ def game_list_create(request):
         })
     
     elif request.method == 'POST':
+        # Accept multipart/form-data for image upload (request.data includes FILES)
         serializer = GameCreateSerializer(data=request.data)
         if serializer.is_valid():
             game = serializer.save()
@@ -171,6 +178,7 @@ def game_detail(request, game_id):
         return Response(serializer.data)
     
     elif request.method == 'PATCH':
+        # Accept multipart/form-data for image upload
         serializer = GameCreateSerializer(game, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
