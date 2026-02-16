@@ -9,26 +9,21 @@ from core.models import SuperSetting, UserRole
 from core.game_api_client import launch_game
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def launch_game_redirect(request):
-    """
-    GET ?game_uid=... - Redirect to provider launch URL.
-    Requires authenticated player. Uses SuperSetting for base_url, secret, token, domain_url.
-    """
+def _launch_game_common(request):
+    """Shared logic: validate player, get game_uid, call provider, return (location_url or None, error_response or None)."""
     err = require_role(request, [UserRole.PLAYER])
     if err:
-        return err
+        return None, err
     game_uid = request.GET.get("game_uid") or request.query_params.get("game_uid")
     if not game_uid or not game_uid.strip():
-        return Response(
+        return None, Response(
             {"detail": "game_uid is required."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     game_uid = game_uid.strip()
     settings = SuperSetting.get_settings()
     if not settings or not settings.game_api_url or not settings.game_api_secret or not settings.game_api_token:
-        return Response(
+        return None, Response(
             {"detail": "Game API not configured (game_api_url, secret, token)."},
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
@@ -48,14 +43,40 @@ def launch_game_redirect(request):
             allow_redirects=False,
         )
     except Exception as e:
-        return Response(
+        return None, Response(
             {"detail": f"Launch failed: {str(e)}"},
             status=status.HTTP_502_BAD_GATEWAY,
         )
     if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("Location"):
-        from django.http import HttpResponseRedirect
-        return HttpResponseRedirect(r.headers["Location"])
-    return Response(
+        return r.headers["Location"], None
+    return None, Response(
         {"detail": "Provider did not redirect.", "status": r.status_code, "body": r.text[:500]},
         status=status.HTTP_502_BAD_GATEWAY,
     )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def launch_game_redirect(request):
+    """
+    GET ?game_uid=... - Redirect to provider launch URL.
+    Requires authenticated player. Uses SuperSetting for base_url, secret, token, domain_url.
+    """
+    location_url, err = _launch_game_common(request)
+    if err is not None:
+        return err
+    from django.http import HttpResponseRedirect
+    return HttpResponseRedirect(location_url)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def launch_game_url(request):
+    """
+    GET ?game_uid=... - Return launch URL in JSON for React to open in new tab.
+    Requires authenticated player. Returns {"url": "..."} on success.
+    """
+    location_url, err = _launch_game_common(request)
+    if err is not None:
+        return err
+    return Response({"url": location_url})
