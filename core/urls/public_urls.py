@@ -1,0 +1,24 @@
+"""
+Public API URLs: auth, site, games, bonus. No auth required for read endpoints.
+"""
+from django.urls import path
+from core.views.public import auth_views, site_views, game_views, bonus_views
+
+urlpatterns = [
+    # Auth
+    path('auth/login/', auth_views.login),
+    path('auth/register/', auth_views.register),
+    path('auth/me/', auth_views.me),
+    # Site
+    path('site-setting/', site_views.site_setting),
+    path('cms/footer/', site_views.cms_pages_footer),
+    path('cms/<slug:slug>/', site_views.cms_page_by_slug),
+    path('testimonials/', site_views.testimonials_list),
+    # Games
+    path('categories/', game_views.category_list),
+    path('providers/', game_views.provider_list),
+    path('games/', game_views.game_list),
+    path('games/<int:pk>/', game_views.game_detail),
+    # Bonus
+    path('bonus-rules/', bonus_views.bonus_rules_list),
+]

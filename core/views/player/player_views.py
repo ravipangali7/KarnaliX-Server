@@ -1,0 +1,76 @@
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from core.permissions import require_role
+from core.models import UserRole, Deposit, Withdraw, Transaction, GameLog, PaymentMode
+from core.serializers import DepositSerializer, WithdrawSerializer, TransactionSerializer, GameLogSerializer, PaymentModeSerializer
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def wallet(request):
+    err = require_role(request, [UserRole.PLAYER])
+    if err: return err
+    u = request.user
+    return Response({
+        'main_balance': str(u.main_balance or 0),
+        'bonus_balance': str(u.bonus_balance or 0),
+        'deposits': DepositSerializer(Deposit.objects.filter(user=u).order_by('-created_at')[:50], many=True).data,
+        'withdrawals': WithdrawSerializer(Withdraw.objects.filter(user=u).order_by('-created_at')[:50], many=True).data,
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def transaction_list(request):
+    err = require_role(request, [UserRole.PLAYER])
+    if err: return err
+    return Response(TransactionSerializer(Transaction.objects.filter(user=request.user).order_by('-created_at')[:200], many=True).data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def game_log_list(request):
+    err = require_role(request, [UserRole.PLAYER])
+    if err: return err
+    return Response(GameLogSerializer(GameLog.objects.filter(user=request.user).select_related('game', 'provider').order_by('-created_at')[:200], many=True).data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def deposit_payment_modes(request):
+    """Return master's (parent's) payment modes for deposit. Player selects one when requesting deposit."""
+    err = require_role(request, [UserRole.PLAYER])
+    if err:
+        return err
+    parent = request.user.parent
+    if not parent:
+        return Response([])
+    qs = PaymentMode.objects.filter(user=parent, is_active=True)
+    return Response(PaymentModeSerializer(qs, many=True).data)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def payment_mode_list_create(request):
+    err = require_role(request, [UserRole.PLAYER])
+    if err: return err
+    if request.method == 'GET':
+        return Response(PaymentModeSerializer(PaymentMode.objects.filter(user=request.user), many=True).data)
+    data = request.data.copy()
+    data['user'] = request.user.id
+    ser = PaymentModeSerializer(data=data)
+    ser.is_valid(raise_exception=True)
+    ser.save()
+    return Response(ser.data, status=status.HTTP_201_CREATED)
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def payment_mode_detail(request, pk):
+    err = require_role(request, [UserRole.PLAYER])
+    if err: return err
+    obj = PaymentMode.objects.filter(pk=pk, user=request.user).first()
+    if not obj: return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    if request.method == 'GET': return Response(PaymentModeSerializer(obj).data)
+    if request.method == 'DELETE': obj.delete(); return Response(status=status.HTTP_204_NO_CONTENT)
+    ser = PaymentModeSerializer(obj, data=request.data, partial=(request.method == 'PATCH'))
+    ser.is_valid(raise_exception=True)
+    ser.save()
+    return Response(ser.data)
