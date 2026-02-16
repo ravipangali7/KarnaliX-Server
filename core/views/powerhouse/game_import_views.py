@@ -1,5 +1,4 @@
-"""Powerhouse: Direct import of providers/games from external game API."""
-import logging
+"""Powerhouse: Direct import of providers/games. Backend exposes game API URL only; React calls game API from browser."""
 from decimal import Decimal
 
 from rest_framework.decorators import api_view, permission_classes
@@ -9,9 +8,6 @@ from rest_framework import status
 
 from core.permissions import require_role
 from core.models import SuperSetting, GameProvider, GameCategory, Game, UserRole
-from core.game_api_client import get_providers, get_provider_games
-
-logger = logging.getLogger(__name__)
 
 
 def _get_base_url():
@@ -23,64 +19,18 @@ def _get_base_url():
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def import_providers_list(request):
-    """GET list of providers from external game API (getProvider). Powerhouse only."""
+def import_game_api_url(request):
+    """GET game API base URL for frontend to call getProvider/providerGame from browser. Powerhouse only."""
     err = require_role(request, [UserRole.POWERHOUSE])
     if err:
         return err
     base_url = _get_base_url()
     if not base_url:
         return Response(
-            {"detail": "Game API URL not set. Configure it in Super Settings."},
+            {"detail": "Game API URL not set. Configure it in Super Settings.", "game_api_url": ""},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    try:
-        providers = get_providers(base_url)
-    except Exception as e:
-        logger.exception("Import providers: external API failed")
-        return Response(
-            {"detail": f"External API error: {str(e)}"},
-            status=status.HTTP_502_BAD_GATEWAY,
-        )
-    return Response(providers)
-
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def import_provider_games(request, provider_code):
-    """GET categories and games for a provider from external API (providerGame). Powerhouse only."""
-    err = require_role(request, [UserRole.POWERHOUSE])
-    if err:
-        return err
-    base_url = _get_base_url()
-    if not base_url:
-        return Response(
-            {"detail": "Game API URL not set. Configure it in Super Settings."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    try:
-        games = get_provider_games(base_url, provider_code, count=1000)
-    except Exception as e:
-        logger.exception("Import provider games: external API failed")
-        return Response(
-            {"detail": f"External API error: {str(e)}"},
-            status=status.HTTP_502_BAD_GATEWAY,
-        )
-    categories = sorted({(g.get("game_type") or "").strip() or "Other" for g in games if g})
-    result = {
-        "categories": categories,
-        "games": [
-            {
-                "game_uid": (g.get("game_code") or "").strip(),
-                "game_name": (g.get("game_name") or "").strip(),
-                "game_type": (g.get("game_type") or "").strip() or "Other",
-                "game_image": (g.get("game_image") or "").strip() or "",
-            }
-            for g in games
-            if (g.get("game_code") or "").strip()
-        ],
-    }
-    return Response(result)
+    return Response({"game_api_url": base_url})
 
 
 @api_view(["POST"])
