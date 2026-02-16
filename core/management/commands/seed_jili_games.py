@@ -1,12 +1,36 @@
-"""Seed JILI provider with games (name + game_uid), image_url from jiliwebp base, category inferred from name."""
+"""Seed JILI provider with games (name + game_uid), image from local jiliwebp folder saved to media. Use --fresh to delete all JILI games and re-seed."""
 from decimal import Decimal
+from pathlib import Path
 
+from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 
 from core.models import Game, GameCategory, GameProvider
 
-# Base URL for game images (e.g. jiliwebp CDN); adjust to real URL as needed.
-JILI_IMAGE_BASE = "https://cdn.example.com/jiliwebp"
+# Folder under project root containing JILI game images: filenames match game name (e.g. "Royal Fishing.webp")
+JILI_IMAGE_FOLDER = settings.BASE_DIR / "jiliwebp"
+
+
+def _normalize_for_match(s: str) -> str:
+    """Lowercase, alphanumeric only (spaces/underscores/hyphens removed) for matching."""
+    return "".join(c for c in (s or "").lower() if c.isalnum())
+
+
+def find_image_path_for_name(folder: Path, game_name: str) -> Path | None:
+    """Return path to a .webp in folder whose name matches game_name (exact or normalized)."""
+    if not folder.exists() or not game_name:
+        return None
+    name_norm = _normalize_for_match(game_name)
+    # Try exact filename first: "Royal Fishing.webp"
+    exact = folder / f"{game_name.strip()}.webp"
+    if exact.exists():
+        return exact
+    # Match by normalized stem (e.g. "Royal Fishing" vs "royal_fishing.webp" or "RoyalFishing.webp")
+    for p in folder.glob("*.webp"):
+        if _normalize_for_match(p.stem) == name_norm:
+            return p
+    return None
 
 
 def infer_category(name: str) -> str:
@@ -247,13 +271,23 @@ JILI_GAMES = [
 
 
 class Command(BaseCommand):
-    help = "Seed JILI provider with games (name, game_uid), image_url from jiliwebp base, category inferred from name."
+    help = "Seed JILI provider with games (name + game_uid), image saved to media. Use --fresh to delete all JILI games and re-seed."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--fresh",
+            action="store_true",
+            help="Delete all existing JILI provider games first, then re-seed with images.",
+        )
 
     def handle(self, *args, **options):
         provider, _ = GameProvider.objects.get_or_create(
             code="jili",
             defaults={"name": "JILI", "is_active": True},
         )
+        if options.get("fresh"):
+            deleted, _ = Game.objects.filter(provider=provider).delete()
+            self.stdout.write(self.style.WARNING(f"Deleted {deleted} existing JILI games."))
         created = 0
         skipped = 0
         zero = Decimal("0")
@@ -267,14 +301,12 @@ class Command(BaseCommand):
                 name=cat_name,
                 defaults={"is_active": True},
             )
-            image_url = f"{JILI_IMAGE_BASE.rstrip('/')}/{game_uid}.webp"
-            _, was_created = Game.objects.get_or_create(
+            game, was_created = Game.objects.get_or_create(
                 provider=provider,
                 game_uid=game_uid,
                 defaults={
                     "name": name,
                     "category": category,
-                    "image_url": image_url,
                     "is_active": True,
                     "min_bet": zero,
                     "max_bet": zero,
@@ -282,6 +314,15 @@ class Command(BaseCommand):
             )
             if was_created:
                 created += 1
+                image_path = find_image_path_for_name(JILI_IMAGE_FOLDER, name)
+                if image_path:
+                    try:
+                        with open(image_path, "rb") as f:
+                            game.image.save(image_path.name, ContentFile(f.read()), save=True)
+                    except Exception as e:
+                        self.stdout.write(self.style.WARNING(f"Could not save image for {name!r}: {e}"))
+                else:
+                    self.stdout.write(self.style.WARNING(f"Image not found for game name: {name!r}"))
             else:
                 skipped += 1
         self.stdout.write(
