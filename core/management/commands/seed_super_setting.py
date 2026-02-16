@@ -8,7 +8,7 @@ from core.models import SuperSetting
 GAME_API_SECRET = "4d45bba519ac2d39d1618f57120b84b7"
 GAME_API_TOKEN = "184de030-912d-4c26-81fc-6c5cd3c05add"
 GAME_API_CALLBACK_URL = "https://kingxclub.com/api/callback"
-GAME_API_BASE_URL_DEFAULT = "https://allapi.online/launch_game_js"
+GAME_API_BASE_URL_DEFAULT = "https://allapi.online.com/launch_game_js"
 
 
 class Command(BaseCommand):
