@@ -36,11 +36,14 @@ def provider_list(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def game_list(request):
-    """GET games (active). Optional query: category_id."""
+    """GET games (active). Optional query: category_id, provider_id."""
     qs = Game.objects.filter(is_active=True).select_related('category', 'provider')
     category_id = request.query_params.get('category_id') or request.query_params.get('category')
     if category_id:
         qs = qs.filter(category_id=category_id)
+    provider_id = request.query_params.get('provider_id') or request.query_params.get('provider')
+    if provider_id:
+        qs = qs.filter(provider_id=provider_id)
     serializer = GameListSerializer(qs, many=True)
     return Response(serializer.data)
 
