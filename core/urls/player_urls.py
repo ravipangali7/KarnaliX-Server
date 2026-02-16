@@ -8,6 +8,7 @@ from core.views.player import (
     message_views,
     transfer_views,
 )
+from core.views import launch_views
 
 urlpatterns = [
     path('dashboard/', dashboard_views.dashboard),
@@ -27,4 +28,5 @@ urlpatterns = [
     path('messages/', message_views.message_list),
     path('messages/send/', message_views.message_create),
     path('transfer/', transfer_views.transfer),
+    path('launch-game/', launch_views.launch_game_redirect),
 ]

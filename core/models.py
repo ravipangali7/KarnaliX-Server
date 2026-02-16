@@ -110,6 +110,7 @@ class SuperSetting(models.Model):
     game_api_secret = models.CharField(max_length=255, blank=True)
     game_api_token = models.CharField(max_length=255, blank=True)
     game_api_callback_url = models.URLField(blank=True)
+    game_api_domain_url = models.URLField(blank=True)
     min_withdraw = models.DecimalField(max_digits=16, decimal_places=2, default=default_decimal_zero)
     min_deposit = models.DecimalField(max_digits=16, decimal_places=2, default=default_decimal_zero)
     max_withdraw = models.DecimalField(max_digits=16, decimal_places=2, default=default_decimal_zero)

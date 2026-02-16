@@ -95,11 +95,13 @@ def launch_game(
     user_id: str,
     wallet_amount: float | int,
     game_uid: str,
+    domain_url: str | None = None,
     timeout: int = 30,
     allow_redirects: bool = False,
 ):
     """
     Build AES-256-ECB encrypted payload and GET launch_game.
+    If domain_url is provided, include it in the payload (same as PHP reference).
     Returns response object; if redirect, final_url is in response.url.
     Set allow_redirects=False to get redirect URL without following.
     """
@@ -111,8 +113,13 @@ def launch_game(
         "token": token,
         "timestamp": ts,
     }
+    if domain_url:
+        payload_data["domain_url"] = domain_url.rstrip("/")
     payload_b64 = encrypt_payload(payload_data, secret_key)
-    url = base_url.rstrip("/") + "/launch_game"
+    if "launch" in base_url:
+        url = base_url.rstrip("/")
+    else:
+        url = base_url.rstrip("/") + "/launch_game"
     params = {
         "user_id": user_id,
         "wallet_amount": wallet_amount,
