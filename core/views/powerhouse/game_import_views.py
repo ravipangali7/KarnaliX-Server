@@ -1,4 +1,5 @@
 """Powerhouse: Direct import of providers/games from external game API."""
+import logging
 from decimal import Decimal
 
 from rest_framework.decorators import api_view, permission_classes
@@ -9,6 +10,8 @@ from rest_framework import status
 from core.permissions import require_role
 from core.models import SuperSetting, GameProvider, GameCategory, Game, UserRole
 from core.game_api_client import get_providers, get_provider_games
+
+logger = logging.getLogger(__name__)
 
 
 def _get_base_url():
@@ -34,6 +37,7 @@ def import_providers_list(request):
     try:
         providers = get_providers(base_url)
     except Exception as e:
+        logger.exception("Import providers: external API failed")
         return Response(
             {"detail": f"External API error: {str(e)}"},
             status=status.HTTP_502_BAD_GATEWAY,
@@ -57,6 +61,7 @@ def import_provider_games(request, provider_code):
     try:
         games = get_provider_games(base_url, provider_code, count=1000)
     except Exception as e:
+        logger.exception("Import provider games: external API failed")
         return Response(
             {"detail": f"External API error: {str(e)}"},
             status=status.HTTP_502_BAD_GATEWAY,
