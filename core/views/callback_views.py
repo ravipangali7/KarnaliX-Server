@@ -87,15 +87,23 @@ def _get_callback_data(request):
 
 
 @csrf_exempt
-@require_http_methods(["POST"])
+@require_http_methods(["GET", "POST"])
 def game_callback(request):
     """
+    GET: return info so you can verify this URL is reachable (use this URL in provider dashboard).
     POST from provider: mobile, bet_amount, win_amount, game_uid, game_round, token,
     wallet_before, wallet_after, change, timestamp, currency_code.
     Accepts form-encoded or application/json body.
     Update user balance to wallet_after, create/update GameLog, update master pl_balance.
     Return JSON {"status": "ok"}.
     """
+    if request.method == "GET":
+        return JsonResponse({
+            "message": "Game callback endpoint. Configure your game provider to POST round results here.",
+            "method": "POST",
+            "fields": ["mobile or user_id", "bet_amount", "win_amount", "wallet_before", "wallet_after", "game_round", "game_uid", "token"],
+        }, status=200)
+
     data = _get_callback_data(request)
     logger.info("game_callback: received POST keys=%s", list(data.keys()) if data else [])
 
