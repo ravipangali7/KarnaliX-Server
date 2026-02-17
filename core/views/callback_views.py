@@ -1,6 +1,8 @@
 """
 Provider game callback: POST from provider with round result; update user balance, GameLog, master PL.
+Accepts both application/x-www-form-urlencoded and application/json bodies.
 """
+import json
 from decimal import Decimal
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -64,26 +66,50 @@ def _get_or_create_game_and_provider(game_uid):
     return game
 
 
+def _get_callback_data(request):
+    """
+    Return a dict of callback fields from either JSON body or request.POST.
+    Same field names: mobile, user_id, bet_amount, win_amount, game_uid, game_round,
+    token, wallet_before, wallet_after, change, timestamp.
+    """
+    content_type = (request.content_type or "").strip().split(";")[0].lower()
+    if content_type == "application/json":
+        try:
+            body = request.body.decode("utf-8") if request.body else "{}"
+            return json.loads(body) if body else {}
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return {}
+    # form-encoded or other: use POST
+    return request.POST.dict() if hasattr(request.POST, "dict") else dict(request.POST)
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def game_callback(request):
     """
     POST from provider: mobile, bet_amount, win_amount, game_uid, game_round, token,
     wallet_before, wallet_after, change, timestamp, currency_code.
+    Accepts form-encoded or application/json body.
     Update user balance to wallet_after, create/update GameLog, update master pl_balance.
-    Return JSON {"timestamp": "..."}.
+    Return JSON {"status": "ok"}.
     """
+    data = _get_callback_data(request)
+
+    def _get(key, default=""):
+        val = data.get(key, default)
+        return val if val is not None else default
+
     try:
-        mobile = request.POST.get("mobile") or request.POST.get("user_id")
-        bet = Decimal(request.POST.get("bet_amount") or "0")
-        win = Decimal(request.POST.get("win_amount") or "0")
-        game_uid = (request.POST.get("game_uid") or "").strip()
-        game_round = (request.POST.get("game_round") or "").strip()
-        token = request.POST.get("token") or ""
-        wallet_before = Decimal(request.POST.get("wallet_before") or "0")
-        wallet_after = Decimal(request.POST.get("wallet_after") or "0")
-        change = Decimal(request.POST.get("change") or "0")
-        timestamp = request.POST.get("timestamp") or timezone.now().isoformat()
+        mobile = _get("mobile") or _get("user_id")
+        bet = Decimal(str(_get("bet_amount", "0")))
+        win = Decimal(str(_get("win_amount", "0")))
+        game_uid = (_get("game_uid") or "").strip()
+        game_round = (_get("game_round") or "").strip()
+        token = _get("token") or ""
+        wallet_before = Decimal(str(_get("wallet_before", "0")))
+        wallet_after = Decimal(str(_get("wallet_after", "0")))
+        change = Decimal(str(_get("change", "0")))
+        timestamp = _get("timestamp") or timezone.now().isoformat()
     except Exception:
         return JsonResponse({"error": "Invalid parameters"}, status=400)
 
@@ -112,7 +138,7 @@ def game_callback(request):
         existing.win_amount = win
         existing.type = log_type
         existing.after_balance = wallet_after
-        existing.provider_raw_data = request.POST.dict() if hasattr(request.POST, "dict") else {}
+        existing.provider_raw_data = data
         existing.save(update_fields=["bet_amount", "win_amount", "type", "after_balance", "provider_raw_data", "updated_at"])
         game_log = existing
     else:
@@ -128,7 +154,7 @@ def game_callback(request):
             lose_amount=bet - win if not result_win else Decimal("0"),
             before_balance=wallet_before,
             after_balance=wallet_after,
-            provider_raw_data=request.POST.dict() if hasattr(request.POST, "dict") else {},
+            provider_raw_data=data,
         )
 
     user.main_balance = wallet_after
