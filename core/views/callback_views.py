@@ -149,5 +149,4 @@ def game_callback(request):
         remarks=f"Game round {game_round}",
     )
 
-    ts = timezone.now().isoformat()
-    return JsonResponse({"timestamp": ts}, status=200)
+    return JsonResponse({"status": "ok"}, status=200)

@@ -1,12 +1,23 @@
 """Game launch: build provider URL and redirect authenticated user."""
+from django.conf import settings as django_settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
 from core.permissions import require_role
-from core.models import SuperSetting, UserRole
-from core.game_api_client import launch_game
+from core.models import SuperSetting, UserRole, Game
+from core.game_api_client import launch_game, build_launch_url
+
+
+def _normalize_launch_base(launch_base: str) -> str:
+    """AllAPI expects launch_game1_js; launch_game_js returns 'Wrong or missing Parameter'."""
+    base_rstrip = launch_base.rstrip("/")
+    if base_rstrip.endswith("/launch_game_js"):
+        return base_rstrip.replace("/launch_game_js", "/launch_game1_js")
+    if base_rstrip in ("https://allapi.online", "http://allapi.online"):
+        return base_rstrip + "/launch_game1_js"
+    return launch_base.rstrip("/")
 
 
 def _launch_game_common(request):
@@ -30,12 +41,7 @@ def _launch_game_common(request):
     user = request.user
     wallet_amount = float((user.main_balance or 0) + (user.bonus_balance or 0))
     launch_base = (getattr(settings, "game_api_launch_url", None) or "").strip() or settings.game_api_url
-    # AllAPI expects launch_game1_js; launch_game_js returns "Wrong or missing Parameter"
-    base_rstrip = launch_base.rstrip("/")
-    if base_rstrip.endswith("/launch_game_js"):
-        launch_base = base_rstrip.replace("/launch_game_js", "/launch_game1_js")
-    elif base_rstrip in ("https://allapi.online", "http://allapi.online"):
-        launch_base = base_rstrip + "/launch_game1_js"
+    launch_base = _normalize_launch_base(launch_base)
     user_id = str(user.pk)
     domain_url = (settings.game_api_domain_url or "").strip() or None
     try:
@@ -87,3 +93,84 @@ def launch_game_url(request):
     if err is not None:
         return err
     return Response({"url": location_url})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def launch_game_by_id(request, game_id):
+    """
+    GET /api/player/games/<game_id>/launch/
+    Returns {"launch_url": "https://..."}. Requires authenticated player.
+    Validates game (active, has game_uid), provider (active, has endpoint or global config).
+    """
+    err = require_role(request, [UserRole.PLAYER])
+    if err:
+        return err
+
+    game = Game.objects.select_related("provider").filter(pk=game_id).first()
+    if not game:
+        return Response({"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND)
+    if not game.is_active:
+        return Response({"error": "Game is not available"}, status=status.HTTP_400_BAD_REQUEST)
+    if not (game.game_uid and game.game_uid.strip()):
+        return Response({"error": "Game has no provider identifier"}, status=status.HTTP_400_BAD_REQUEST)
+    game_uid = game.game_uid.strip()
+
+    provider = game.provider
+    super_settings = SuperSetting.get_settings()
+
+    if not provider.is_active:
+        return Response({"error": "Game provider is not available"}, status=status.HTTP_400_BAD_REQUEST)
+
+    launch_base = (provider.api_endpoint or "").strip()
+    if not launch_base and super_settings:
+        launch_base = (getattr(super_settings, "game_api_launch_url", None) or "").strip() or (super_settings.game_api_url or "").strip()
+    if not launch_base:
+        return Response({"error": "Game provider is not available"}, status=status.HTTP_400_BAD_REQUEST)
+    launch_base = _normalize_launch_base(launch_base)
+
+    api_secret = (provider.api_secret or "").strip()
+    if not api_secret and super_settings:
+        api_secret = (super_settings.game_api_secret or "").strip()
+    if not api_secret:
+        api_secret = getattr(django_settings, "GAME_PROVIDER_API_SECRET", None) or ""
+    if not api_secret:
+        return Response({"error": "Provider API secret not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    api_token = (provider.api_token or "").strip()
+    if not api_token and super_settings:
+        api_token = (super_settings.game_api_token or "").strip()
+    if not api_token:
+        api_token = str(request.user.pk)
+
+    domain_url = None
+    if super_settings and (super_settings.game_api_domain_url or "").strip():
+        domain_url = (super_settings.game_api_domain_url or "").strip()
+    if not domain_url:
+        domain_url = getattr(django_settings, "SITE_DOMAIN", None) or ""
+    if domain_url:
+        domain_url = domain_url.strip()
+    if not domain_url and request:
+        domain_url = request.build_absolute_uri("/").rstrip("/") or None
+
+    user = request.user
+    wallet_amount = float((user.main_balance or 0) + (user.bonus_balance or 0))
+    user_id = str(user.pk)
+
+    try:
+        launch_url = build_launch_url(
+            base_url=launch_base,
+            secret_key=api_secret,
+            token=api_token,
+            user_id=user_id,
+            wallet_amount=wallet_amount,
+            game_uid=game_uid,
+            domain_url=domain_url or None,
+        )
+    except Exception as e:
+        return Response(
+            {"error": "Failed to build launch URL", "detail": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    return Response({"launch_url": launch_url}, status=status.HTTP_200_OK)

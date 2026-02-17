@@ -3,6 +3,7 @@ Client for external game provider API: getProvider, providerGame, launch_game.
 Uses AES-256-ECB for launch_game payload encryption.
 """
 import json
+from urllib.parse import urlencode
 import base64
 import time
 import requests
@@ -86,6 +87,45 @@ def get_provider_games(
                 "game_image": item.get("game_image") or item.get("image") or "",
             })
     return result
+
+
+def build_launch_url(
+    base_url: str,
+    secret_key: str,
+    token: str,
+    user_id: str,
+    wallet_amount: float | int,
+    game_uid: str,
+    domain_url: str | None = None,
+) -> str:
+    """
+    Build the launch URL string only (no HTTP request).
+    Returns full URL with query params: user_id, wallet_amount, game_uid, token, timestamp, payload.
+    """
+    ts = str(int(time.time() * 1000))
+    payload_data = {
+        "user_id": user_id,
+        "wallet_amount": float(wallet_amount),
+        "game_uid": game_uid,
+        "token": token,
+        "timestamp": ts,
+    }
+    if domain_url:
+        payload_data["domain_url"] = domain_url.rstrip("/")
+    payload_b64 = encrypt_payload(payload_data, secret_key)
+    if "launch" in base_url:
+        url = base_url.rstrip("/")
+    else:
+        url = base_url.rstrip("/") + "/launch_game"
+    params = {
+        "user_id": user_id,
+        "wallet_amount": int(round(float(wallet_amount))),
+        "game_uid": game_uid,
+        "token": token,
+        "timestamp": ts,
+        "payload": payload_b64,
+    }
+    return url + "?" + urlencode(params)
 
 
 def launch_game(

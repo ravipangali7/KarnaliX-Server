@@ -398,6 +398,9 @@ class BonusRule(models.Model):
 class GameProvider(models.Model):
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=100)
+    api_endpoint = models.URLField(blank=True)
+    api_secret = models.CharField(max_length=255, blank=True)
+    api_token = models.CharField(max_length=255, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -186,6 +186,7 @@ class GameProviderAdmin(admin.ModelAdmin):
     list_display = ('name', 'code', 'is_active', 'created_at')
     list_filter = ('is_active',)
     search_fields = ('name', 'code')
+    fields = ('name', 'code', 'api_endpoint', 'api_secret', 'api_token', 'is_active')
 
 
 @admin.register(GameCategory)

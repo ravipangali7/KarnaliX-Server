@@ -151,6 +151,10 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Game provider launch (fallback when GameProvider.api_secret / SuperSetting not set)
+GAME_PROVIDER_API_SECRET = os.environ.get('GAME_PROVIDER_API_SECRET', '4d45bba519ac2d39d1618f57120b84b7')
+SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'https://kingxclub.com')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

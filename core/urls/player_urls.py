@@ -25,6 +25,7 @@ urlpatterns = [
     path('messages/', message_views.message_list),
     path('messages/send/', message_views.message_create),
     path('transfer/', transfer_views.transfer),
+    path('games/<int:game_id>/launch/', launch_views.launch_game_by_id),
     path('launch-game/', launch_views.launch_game_redirect),
     path('launch-url/', launch_views.launch_game_url),
 ]
