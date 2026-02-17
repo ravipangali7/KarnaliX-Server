@@ -97,10 +97,12 @@ def build_launch_url(
     wallet_amount: float | int,
     game_uid: str,
     domain_url: str | None = None,
+    callback_url: str | None = None,
 ) -> str:
     """
     Build the launch URL string only (no HTTP request).
     Returns full URL with query params: user_id, wallet_amount, game_uid, token, timestamp, payload.
+    If callback_url is provided, include it in the encrypted payload so the provider can POST round results there.
     """
     ts = str(int(time.time() * 1000))
     payload_data = {
@@ -112,6 +114,8 @@ def build_launch_url(
     }
     if domain_url:
         payload_data["domain_url"] = domain_url.rstrip("/")
+    if callback_url:
+        payload_data["callback_url"] = callback_url.rstrip("/")
     payload_b64 = encrypt_payload(payload_data, secret_key)
     if "launch" in base_url:
         url = base_url.rstrip("/")

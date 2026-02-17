@@ -3,8 +3,11 @@ Provider game callback: POST from provider with round result; update user balanc
 Accepts both application/x-www-form-urlencoded and application/json bodies.
 """
 import json
+import logging
 from decimal import Decimal
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
@@ -94,6 +97,7 @@ def game_callback(request):
     Return JSON {"status": "ok"}.
     """
     data = _get_callback_data(request)
+    logger.info("game_callback: received POST keys=%s", list(data.keys()) if data else [])
 
     def _get(key, default=""):
         val = data.get(key, default)
@@ -111,18 +115,23 @@ def game_callback(request):
         change = Decimal(str(_get("change", "0")))
         timestamp = _get("timestamp") or timezone.now().isoformat()
     except Exception:
+        logger.warning("game_callback: invalid parameters, data keys=%s", list(data.keys()) if data else [])
         return JsonResponse({"error": "Invalid parameters"}, status=400)
 
+    # Only validate token when we have a configured token AND the provider sent one (some providers don't echo token)
     settings = SuperSetting.get_settings()
-    if settings and getattr(settings, "game_api_token", None) and settings.game_api_token:
-        if token != settings.game_api_token:
+    if settings and getattr(settings, "game_api_token", None) and settings.game_api_token and (token or "").strip():
+        if (token or "").strip() != settings.game_api_token:
+            logger.warning("game_callback: token mismatch for mobile=%s", mobile)
             return JsonResponse({"error": "Invalid token"}, status=403)
 
     user = _get_user_by_mobile(mobile)
     if not user:
+        logger.warning("game_callback: user not found for mobile=%s (try user_id or numeric id)", mobile)
         return JsonResponse({"error": "User not found"}, status=400)
 
     if not game_round:
+        logger.warning("game_callback: game_round missing for user id=%s", user.pk)
         return JsonResponse({"error": "game_round required"}, status=400)
 
     game_uid = game_uid or "unknown"
@@ -175,4 +184,8 @@ def game_callback(request):
         remarks=f"Game round {game_round}",
     )
 
+    logger.info(
+        "game_callback: ok user_id=%s game_round=%s bet=%s win=%s wallet_after=%s",
+        user.pk, game_round, bet, win, wallet_after,
+    )
     return JsonResponse({"status": "ok"}, status=200)

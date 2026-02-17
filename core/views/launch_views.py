@@ -153,6 +153,12 @@ def launch_game_by_id(request, game_id):
     if not domain_url and request:
         domain_url = request.build_absolute_uri("/").rstrip("/") or None
 
+    callback_url = None
+    if super_settings and (super_settings.game_api_callback_url or "").strip():
+        callback_url = (super_settings.game_api_callback_url or "").strip()
+    if not callback_url and request:
+        callback_url = request.build_absolute_uri("/api/callback/").rstrip("/") or None
+
     user = request.user
     wallet_amount = float((user.main_balance or 0) + (user.bonus_balance or 0))
     user_id = str(user.pk)
@@ -166,6 +172,7 @@ def launch_game_by_id(request, game_id):
             wallet_amount=wallet_amount,
             game_uid=game_uid,
             domain_url=domain_url or None,
+            callback_url=callback_url or None,
         )
     except Exception as e:
         return Response(
