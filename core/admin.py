@@ -34,8 +34,9 @@ except admin.sites.NotRegistered:
 
 class PaymentModeInline(admin.TabularInline):
     model = PaymentMode
+    fk_name = 'user'
     extra = 0
-    fields = ('name', 'type', 'wallet_phone', 'bank_name', 'bank_account_no', 'is_active')
+    fields = ('name', 'type', 'wallet_phone', 'bank_name', 'bank_account_no', 'status')
 
 
 # --- User Admin (replace default) ---
@@ -121,8 +122,8 @@ class SuperSettingAdmin(SingletonAdminMixin, admin.ModelAdmin):
 
 @admin.register(PaymentMode)
 class PaymentModeAdmin(admin.ModelAdmin):
-    list_display = ('user', 'name', 'type', 'is_active', 'created_at')
-    list_filter = ('type', 'is_active')
+    list_display = ('user', 'name', 'type', 'status', 'created_at')
+    list_filter = ('type', 'status')
     search_fields = ('name', 'user__username')
     autocomplete_fields = ('user',)
 
