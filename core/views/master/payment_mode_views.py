@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from core.permissions import require_role
-from core.models import PaymentMode, UserRole
+from core.models import PaymentMode, UserRole, PaymentModeStatus
 from core.serializers import PaymentModeSerializer
 
 
@@ -22,6 +22,7 @@ def payment_mode_list(request):
         return Response(PaymentModeSerializer(_qs(request), many=True, context={'request': request}).data)
     data = request.data.copy()
     data['user'] = request.user.id
+    data.setdefault('status', PaymentModeStatus.APPROVED)
     ser = PaymentModeSerializer(data=data)
     ser.is_valid(raise_exception=True)
     ser.save()

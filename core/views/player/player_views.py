@@ -12,11 +12,12 @@ def wallet(request):
     err = require_role(request, [UserRole.PLAYER])
     if err: return err
     u = request.user
+    ctx = {'request': request}
     return Response({
         'main_balance': str(u.main_balance or 0),
         'bonus_balance': str(u.bonus_balance or 0),
-        'deposits': DepositSerializer(Deposit.objects.filter(user=u).order_by('-created_at')[:50], many=True).data,
-        'withdrawals': WithdrawSerializer(Withdraw.objects.filter(user=u).order_by('-created_at')[:50], many=True).data,
+        'deposits': DepositSerializer(Deposit.objects.filter(user=u).select_related('payment_mode').order_by('-created_at')[:50], many=True, context=ctx).data,
+        'withdrawals': WithdrawSerializer(Withdraw.objects.filter(user=u).select_related('payment_mode').order_by('-created_at')[:50], many=True, context=ctx).data,
     })
 
 @api_view(['GET'])
@@ -53,13 +54,13 @@ def payment_mode_list_create(request):
     err = require_role(request, [UserRole.PLAYER])
     if err: return err
     if request.method == 'GET':
-        return Response(PaymentModeSerializer(PaymentMode.objects.filter(user=request.user), many=True).data)
+        return Response(PaymentModeSerializer(PaymentMode.objects.filter(user=request.user), many=True, context={'request': request}).data)
     data = request.data.copy()
     data['user'] = request.user.id
     ser = PaymentModeSerializer(data=data)
     ser.is_valid(raise_exception=True)
     ser.save()
-    return Response(ser.data, status=status.HTTP_201_CREATED)
+    return Response(PaymentModeSerializer(ser.instance, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -68,9 +69,9 @@ def payment_mode_detail(request, pk):
     if err: return err
     obj = PaymentMode.objects.filter(pk=pk, user=request.user).first()
     if not obj: return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    if request.method == 'GET': return Response(PaymentModeSerializer(obj).data)
+    if request.method == 'GET': return Response(PaymentModeSerializer(obj, context={'request': request}).data)
     if request.method == 'DELETE': obj.delete(); return Response(status=status.HTTP_204_NO_CONTENT)
     ser = PaymentModeSerializer(obj, data=request.data, partial=(request.method == 'PATCH'))
     ser.is_valid(raise_exception=True)
     ser.save()
-    return Response(ser.data)
+    return Response(PaymentModeSerializer(ser.instance, context={'request': request}).data)

@@ -267,6 +267,7 @@ class DepositSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_mode_name = serializers.SerializerMethodField()
     payment_mode_qr_image = serializers.SerializerMethodField()
+    payment_mode_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = Deposit
@@ -284,6 +285,16 @@ class DepositSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(url)
         return url
 
+    def get_payment_mode_detail(self, obj):
+        if not obj.payment_mode:
+            return None
+        return PaymentModeSerializer(obj.payment_mode, context=self.context).data
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['payment_mode_detail'] = self.get_payment_mode_detail(instance)
+        return ret
+
 
 class DepositCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -298,6 +309,7 @@ class WithdrawSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_mode_name = serializers.SerializerMethodField()
     payment_mode_qr_image = serializers.SerializerMethodField()
+    payment_mode_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = Withdraw
@@ -314,6 +326,16 @@ class WithdrawSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(url)
         return url
+
+    def get_payment_mode_detail(self, obj):
+        if not obj.payment_mode:
+            return None
+        return PaymentModeSerializer(obj.payment_mode, context=self.context).data
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['payment_mode_detail'] = self.get_payment_mode_detail(instance)
+        return ret
 
 
 class WithdrawCreateSerializer(serializers.ModelSerializer):
