@@ -1,10 +1,15 @@
+from django.db.models import Sum
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from core.permissions import require_role, get_players_queryset
-from core.models import UserRole
-from core.serializers import UserListSerializer, UserDetailSerializer, UserCreateUpdateSerializer
+from core.models import UserRole, Deposit, Withdraw, GameLog, Transaction, ActivityLog
+from core.serializers import (
+    UserListSerializer, UserDetailSerializer, UserCreateUpdateSerializer,
+    DepositSerializer, WithdrawSerializer, GameLogSerializer,
+    TransactionSerializer, ActivityLogSerializer,
+)
 
 
 @api_view(['GET'])
@@ -13,7 +18,25 @@ def player_list(request):
     err = require_role(request, [UserRole.MASTER])
     if err:
         return err
-    qs = get_players_queryset(request.user).order_by('-created_at')
+    qs = get_players_queryset(request.user).annotate(
+        _win_sum=Sum('game_logs__win_amount'),
+        _lose_sum=Sum('game_logs__lose_amount'),
+    ).order_by('-created_at')
+    search = request.query_params.get('search', '').strip()
+    if search:
+        from django.db.models import Q
+        qs = qs.filter(Q(username__icontains=search) | Q(name__icontains=search) | Q(phone__icontains=search))
+    date_from = request.query_params.get('date_from', '').strip()
+    if date_from:
+        qs = qs.filter(created_at__date__gte=date_from)
+    date_to = request.query_params.get('date_to', '').strip()
+    if date_to:
+        qs = qs.filter(created_at__date__lte=date_to)
+    is_active = request.query_params.get('is_active', '')
+    if is_active.lower() == 'true':
+        qs = qs.filter(is_active=True)
+    elif is_active.lower() == 'false':
+        qs = qs.filter(is_active=False)
     return Response(UserListSerializer(qs, many=True).data)
 
 
@@ -73,3 +96,53 @@ def player_delete(request, pk):
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
     obj.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def player_report(request, pk):
+    err = require_role(request, [UserRole.MASTER])
+    if err:
+        return err
+    qs = get_players_queryset(request.user)
+    player = qs.filter(pk=pk).first()
+    if not player:
+        return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    date_from = request.query_params.get('date_from', '').strip()
+    date_to = request.query_params.get('date_to', '').strip()
+
+    total_balance = (player.main_balance or 0) + (player.bonus_balance or 0) + (player.exposure_balance or 0)
+    gl_qs = GameLog.objects.filter(user=player)
+    if date_from:
+        gl_qs = gl_qs.filter(created_at__date__gte=date_from)
+    if date_to:
+        gl_qs = gl_qs.filter(created_at__date__lte=date_to)
+    agg = gl_qs.aggregate(w=Sum('win_amount'), l=Sum('lose_amount'))
+    total_win_loss = (agg['w'] or 0) - (agg['l'] or 0)
+
+    dep_qs = Deposit.objects.filter(user=player).select_related('user', 'payment_mode').order_by('-created_at')
+    wd_qs = Withdraw.objects.filter(user=player).select_related('user', 'payment_mode').order_by('-created_at')
+    tx_qs = Transaction.objects.filter(user=player).select_related('user').order_by('-created_at')
+    act_qs = ActivityLog.objects.filter(user=player).select_related('user', 'game').order_by('-created_at')
+    if date_from:
+        dep_qs = dep_qs.filter(created_at__date__gte=date_from)
+        wd_qs = wd_qs.filter(created_at__date__gte=date_from)
+        tx_qs = tx_qs.filter(created_at__date__gte=date_from)
+        act_qs = act_qs.filter(created_at__date__gte=date_from)
+    if date_to:
+        dep_qs = dep_qs.filter(created_at__date__lte=date_to)
+        wd_qs = wd_qs.filter(created_at__date__lte=date_to)
+        tx_qs = tx_qs.filter(created_at__date__lte=date_to)
+        act_qs = act_qs.filter(created_at__date__lte=date_to)
+
+    context = {'request': request}
+    return Response({
+        'user': UserDetailSerializer(player).data,
+        'total_balance': str(total_balance),
+        'total_win_loss': str(total_win_loss),
+        'deposits': DepositSerializer(dep_qs[:200], many=True, context=context).data,
+        'withdrawals': WithdrawSerializer(wd_qs[:200], many=True, context=context).data,
+        'game_logs': GameLogSerializer(gl_qs[:200], many=True).data,
+        'transactions': TransactionSerializer(tx_qs[:200], many=True).data,
+        'activity_logs': ActivityLogSerializer(act_qs[:200], many=True).data,
+    })

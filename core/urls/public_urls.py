@@ -2,13 +2,18 @@
 Public API URLs: auth, site, games, bonus. No auth required for read endpoints.
 """
 from django.urls import path
-from core.views.public import auth_views, site_views, game_views, bonus_views
+from core.views.public import auth_views, site_views, game_views, bonus_views, password_reset_views
 
 urlpatterns = [
     # Auth
     path('auth/login/', auth_views.login),
     path('auth/register/', auth_views.register),
     path('auth/me/', auth_views.me),
+    # Forgot password (unauthenticated)
+    path('auth/forgot-password/search/', password_reset_views.forgot_password_search),
+    path('auth/forgot-password/send-otp/', password_reset_views.forgot_password_send_otp),
+    path('auth/forgot-password/verify-reset/', password_reset_views.forgot_password_verify_reset),
+    path('auth/forgot-password/whatsapp-contact/', password_reset_views.forgot_password_whatsapp_contact),
     # Site
     path('site-setting/', site_views.site_setting),
     path('cms/footer/', site_views.cms_pages_footer),

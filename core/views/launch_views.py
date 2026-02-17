@@ -29,11 +29,12 @@ def _launch_game_common(request):
         )
     user = request.user
     wallet_amount = float((user.main_balance or 0) + (user.bonus_balance or 0))
-    user_id = user.username
+    launch_base = (getattr(settings, "game_api_launch_url", None) or "").strip() or settings.game_api_url
+    user_id = str(user.pk)
     domain_url = (settings.game_api_domain_url or "").strip() or None
     try:
         r = launch_game(
-            base_url=settings.game_api_url.rstrip("/"),
+            base_url=launch_base.rstrip("/"),
             secret_key=settings.game_api_secret,
             token=settings.game_api_token,
             user_id=user_id,

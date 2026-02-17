@@ -4,7 +4,6 @@ from core.views.powerhouse import (
     user_views,
     deposit_views,
     withdraw_views,
-    kyc_views,
     game_log_views,
     transaction_views,
     activity_views,
@@ -16,6 +15,8 @@ from core.views.powerhouse import (
     testimonial_views,
     message_views,
     bonus_rule_views,
+    payment_mode_verification_views,
+    me_views,
 )
 
 urlpatterns = [
@@ -36,6 +37,7 @@ urlpatterns = [
     path('masters/<int:pk>/reset-password/', user_views.user_reset_password_master),
     path('players/', user_views.user_list_players),
     path('players/<int:pk>/', user_views.user_detail_players),
+    path('players/<int:pk>/report/', user_views.player_report),
     path('players/create/', user_views.user_create_player),
     path('players/<int:pk>/edit/', user_views.user_update_player),
     path('players/<int:pk>/delete/', user_views.user_delete_player),
@@ -53,9 +55,6 @@ urlpatterns = [
     path('withdrawals/<int:pk>/', withdraw_views.withdraw_detail),
     path('withdrawals/<int:pk>/approve/', withdraw_views.withdraw_approve),
     path('withdrawals/<int:pk>/reject/', withdraw_views.withdraw_reject),
-    path('kyc/', kyc_views.kyc_list),
-    path('kyc/<int:pk>/approve/', kyc_views.kyc_approve),
-    path('kyc/<int:pk>/reject/', kyc_views.kyc_reject),
     path('game-log/', game_log_views.game_log_list),
     path('transactions/', transaction_views.transaction_list),
     path('activity/', activity_views.activity_list),
@@ -79,4 +78,10 @@ urlpatterns = [
     path('testimonials/<int:pk>/', testimonial_views.testimonial_detail),
     path('messages/', message_views.message_list),
     path('messages/send/', message_views.message_create),
+    path('payment-mode-verification/', payment_mode_verification_views.payment_mode_verification_list),
+    path('payment-mode-verification/<int:pk>/approve/', payment_mode_verification_views.payment_mode_approve),
+    path('payment-mode-verification/<int:pk>/reject/', payment_mode_verification_views.payment_mode_reject),
+    path('profile/', me_views.profile_get),
+    path('profile/update/', me_views.profile_update),
+    path('change-password/', me_views.change_password),
 ]

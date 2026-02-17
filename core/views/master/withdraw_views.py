@@ -42,7 +42,7 @@ def withdraw_direct(request):
     if not ok:
         wd.delete()
         return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
-    return Response(WithdrawSerializer(wd).data, status=status.HTTP_201_CREATED)
+    return Response(WithdrawSerializer(wd, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
@@ -52,7 +52,19 @@ def withdraw_list(request):
     if err:
         return err
     qs = Withdraw.objects.filter(user__parent=request.user).select_related('user', 'payment_mode').order_by('-created_at')
-    return Response(WithdrawSerializer(qs, many=True).data)
+    search = request.query_params.get('search', '').strip()
+    if search:
+        qs = qs.filter(user__username__icontains=search)
+    status_filter = request.query_params.get('status', '').strip()
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    date_from = request.query_params.get('date_from', '').strip()
+    if date_from:
+        qs = qs.filter(created_at__date__gte=date_from)
+    date_to = request.query_params.get('date_to', '').strip()
+    if date_to:
+        qs = qs.filter(created_at__date__lte=date_to)
+    return Response(WithdrawSerializer(qs, many=True, context={'request': request}).data)
 
 
 @api_view(['GET'])
@@ -64,7 +76,7 @@ def withdraw_detail(request, pk):
     obj = Withdraw.objects.filter(pk=pk, user__parent=request.user).first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    return Response(WithdrawSerializer(obj).data)
+    return Response(WithdrawSerializer(obj, context={'request': request}).data)
 
 
 @api_view(['POST'])
@@ -82,7 +94,7 @@ def withdraw_approve(request, pk):
     ok, msg = approve_withdraw(wd, request.user)
     if not ok:
         return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
-    return Response(WithdrawSerializer(wd).data)
+    return Response(WithdrawSerializer(wd, context={'request': request}).data)
 
 
 @api_view(['POST'])
@@ -99,4 +111,4 @@ def withdraw_reject(request, pk):
     wd.processed_by = request.user
     wd.processed_at = timezone.now()
     wd.save()
-    return Response(WithdrawSerializer(wd).data)
+    return Response(WithdrawSerializer(wd, context={'request': request}).data)

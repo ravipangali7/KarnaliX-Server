@@ -30,8 +30,8 @@ def deposit_payment_modes(request):
     if not target:
         return Response({'detail': 'User not found or not allowed.'}, status=status.HTTP_404_NOT_FOUND)
     owner_id = target.parent_id if target.role == UserRole.PLAYER else user_id
-    qs = PaymentMode.objects.filter(user_id=owner_id, is_active=True)
-    return Response(PaymentModeSerializer(qs, many=True).data)
+    qs = PaymentMode.objects.filter(user_id=owner_id, status='approved')
+    return Response(PaymentModeSerializer(qs, many=True, context={'request': request}).data)
 
 
 @api_view(['GET'])
@@ -41,7 +41,19 @@ def deposit_list(request):
     if err:
         return err
     qs = Deposit.objects.all().select_related('user', 'payment_mode', 'processed_by').order_by('-created_at')
-    serializer = DepositSerializer(qs, many=True)
+    search = request.query_params.get('search', '').strip()
+    if search:
+        qs = qs.filter(user__username__icontains=search)
+    status_filter = request.query_params.get('status', '').strip()
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    date_from = request.query_params.get('date_from', '').strip()
+    if date_from:
+        qs = qs.filter(created_at__date__gte=date_from)
+    date_to = request.query_params.get('date_to', '').strip()
+    if date_to:
+        qs = qs.filter(created_at__date__lte=date_to)
+    serializer = DepositSerializer(qs, many=True, context={'request': request})
     return Response(serializer.data)
 
 
@@ -54,7 +66,7 @@ def deposit_detail(request, pk):
     obj = Deposit.objects.filter(pk=pk).select_related('user', 'payment_mode').first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    return Response(DepositSerializer(obj).data)
+    return Response(DepositSerializer(obj, context={'request': request}).data)
 
 
 @api_view(['POST'])
@@ -68,7 +80,7 @@ def deposit_create(request):
     user_id = request.data.get('user_id')
     from core.models import Deposit as DepositModel
     dep = DepositModel.objects.create(user_id=user_id, **ser.validated_data)
-    return Response(DepositSerializer(dep).data, status=status.HTTP_201_CREATED)
+    return Response(DepositSerializer(dep, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
@@ -135,7 +147,7 @@ def deposit_direct(request):
     if not ok:
         dep.delete()
         return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
-    return Response(DepositSerializer(dep).data, status=status.HTTP_201_CREATED)
+    return Response(DepositSerializer(dep, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
@@ -161,7 +173,7 @@ def deposit_approve(request, pk):
     ok, msg = approve_deposit(dep, request.user)
     if not ok:
         return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
-    return Response(DepositSerializer(dep).data)
+    return Response(DepositSerializer(dep, context={'request': request}).data)
 
 
 @api_view(['POST'])
@@ -178,4 +190,4 @@ def deposit_reject(request, pk):
     dep.processed_by = request.user
     dep.processed_at = timezone.now()
     dep.save()
-    return Response(DepositSerializer(dep).data)
+    return Response(DepositSerializer(dep, context={'request': request}).data)

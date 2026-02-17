@@ -31,8 +31,8 @@ def deposit_payment_modes(request):
         return Response({'detail': 'User not found or not allowed.'}, status=status.HTTP_404_NOT_FOUND)
     target = User.objects.filter(pk=user_id).first()
     owner_id = target.parent_id if target and target.role == UserRole.PLAYER else user_id
-    qs = PaymentMode.objects.filter(user_id=owner_id, is_active=True)
-    return Response(PaymentModeSerializer(qs, many=True).data)
+    qs = PaymentMode.objects.filter(user_id=owner_id, status='approved')
+    return Response(PaymentModeSerializer(qs, many=True, context={'request': request}).data)
 
 
 @api_view(['GET'])
@@ -43,8 +43,21 @@ def deposit_list(request):
         return err
     qs = Deposit.objects.filter(
         Q(user__parent=request.user) | Q(user__parent__parent=request.user)
-    ).select_related('user', 'payment_mode').order_by('-created_at')[:500]
-    return Response(DepositSerializer(qs, many=True).data)
+    ).select_related('user', 'payment_mode').order_by('-created_at')
+    search = request.query_params.get('search', '').strip()
+    if search:
+        qs = qs.filter(user__username__icontains=search)
+    status_filter = request.query_params.get('status', '').strip()
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    date_from = request.query_params.get('date_from', '').strip()
+    if date_from:
+        qs = qs.filter(created_at__date__gte=date_from)
+    date_to = request.query_params.get('date_to', '').strip()
+    if date_to:
+        qs = qs.filter(created_at__date__lte=date_to)
+    qs = qs[:500]
+    return Response(DepositSerializer(qs, many=True, context={'request': request}).data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -57,7 +70,7 @@ def deposit_detail(request, pk):
     ).first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    return Response(DepositSerializer(obj).data)
+    return Response(DepositSerializer(obj, context={'request': request}).data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -68,7 +81,7 @@ def deposit_create(request):
     ser = DepositCreateSerializer(data=request.data)
     ser.is_valid(raise_exception=True)
     dep = Deposit.objects.create(user_id=request.data.get('user_id'), **ser.validated_data)
-    return Response(DepositSerializer(dep).data, status=status.HTTP_201_CREATED)
+    return Response(DepositSerializer(dep, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
@@ -116,7 +129,7 @@ def deposit_direct(request):
     if not ok:
         dep.delete()
         return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
-    return Response(DepositSerializer(dep).data, status=status.HTTP_201_CREATED)
+    return Response(DepositSerializer(dep, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
@@ -137,7 +150,7 @@ def deposit_approve(request, pk):
     ok, msg = approve_deposit(dep, request.user)
     if not ok:
         return Response({'detail': msg}, status=status.HTTP_400_BAD_REQUEST)
-    return Response(DepositSerializer(dep).data)
+    return Response(DepositSerializer(dep, context={'request': request}).data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -156,4 +169,4 @@ def deposit_reject(request, pk):
     dep.processed_by = request.user
     dep.processed_at = timezone.now()
     dep.save()
-    return Response(DepositSerializer(dep).data)
+    return Response(DepositSerializer(dep, context={'request': request}).data)

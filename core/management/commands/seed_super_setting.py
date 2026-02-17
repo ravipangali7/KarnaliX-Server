@@ -9,12 +9,13 @@ GAME_API_SECRET = "4d45bba519ac2d39d1618f57120b84b7"
 GAME_API_TOKEN = "184de030-912d-4c26-81fc-6c5cd3c05add"
 GAME_API_CALLBACK_URL = "https://kingxclub.com/api/callback"
 GAME_API_BASE_URL_DEFAULT = "https://allapi.online/launch_game_js"
+GAME_API_LAUNCH_URL_DEFAULT = "https://allapi.online/launch_game1_js"
 
 
 class Command(BaseCommand):
     help = (
         "Seed or update SuperSetting with game API secret, token, and callback URL. "
-        "Optionally set game_api_url with --base-url and game_api_domain_url with --domain-url (e.g. from PHP: server_url and domain_url)."
+        "Optionally set game_api_url with --base-url, game_api_domain_url with --domain-url, game_api_launch_url with --launch-url."
     )
 
     def add_arguments(self, parser):
@@ -29,6 +30,12 @@ class Command(BaseCommand):
             type=str,
             default=None,
             help="If provided, set game_api_domain_url (e.g. https://kingxclub.com for launch payload).",
+        )
+        parser.add_argument(
+            "--launch-url",
+            type=str,
+            default=None,
+            help="If provided, set game_api_launch_url (e.g. https://allapi.online/launch_game1_js for allapi launch).",
         )
 
     def handle(self, *args, **options):
@@ -46,6 +53,11 @@ class Command(BaseCommand):
             obj.game_api_url = GAME_API_BASE_URL_DEFAULT
         if domain_url:
             obj.game_api_domain_url = domain_url.strip()
+        launch_url = options.get("launch_url")
+        if launch_url:
+            obj.game_api_launch_url = launch_url.strip()
+        else:
+            obj.game_api_launch_url = GAME_API_LAUNCH_URL_DEFAULT
         obj.save()
         self.stdout.write(
             self.style.SUCCESS(
@@ -56,3 +68,4 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"game_api_url set to: {base_url}"))
         if domain_url:
             self.stdout.write(self.style.SUCCESS(f"game_api_domain_url set to: {domain_url}"))
+        self.stdout.write(self.style.SUCCESS(f"game_api_launch_url set to: {obj.game_api_launch_url or '(empty)'}"))

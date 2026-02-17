@@ -43,8 +43,8 @@ def deposit_payment_modes(request):
     parent = request.user.parent
     if not parent:
         return Response([])
-    qs = PaymentMode.objects.filter(user=parent, is_active=True)
-    return Response(PaymentModeSerializer(qs, many=True).data)
+    qs = PaymentMode.objects.filter(user=parent, status='approved')
+    return Response(PaymentModeSerializer(qs, many=True, context={'request': request}).data)
 
 
 @api_view(['GET', 'POST'])

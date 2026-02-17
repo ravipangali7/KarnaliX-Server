@@ -122,7 +122,7 @@ def launch_game(
         url = base_url.rstrip("/") + "/launch_game"
     params = {
         "user_id": user_id,
-        "wallet_amount": wallet_amount,
+        "wallet_amount": int(round(float(wallet_amount))),
         "game_uid": game_uid,
         "token": token,
         "timestamp": ts,

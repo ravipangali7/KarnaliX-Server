@@ -19,13 +19,13 @@ def payment_mode_list(request):
     if err:
         return err
     if request.method == 'GET':
-        return Response(PaymentModeSerializer(_qs(request), many=True).data)
+        return Response(PaymentModeSerializer(_qs(request), many=True, context={'request': request}).data)
     data = request.data.copy()
     data['user'] = request.user.id
     ser = PaymentModeSerializer(data=data)
     ser.is_valid(raise_exception=True)
     ser.save()
-    return Response(ser.data, status=status.HTTP_201_CREATED)
+    return Response(PaymentModeSerializer(ser.instance, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
@@ -37,7 +37,7 @@ def payment_mode_detail(request, pk):
     obj = _qs(request).filter(pk=pk).first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    return Response(PaymentModeSerializer(obj).data)
+    return Response(PaymentModeSerializer(obj, context={'request': request}).data)
 
 
 @api_view(['PATCH', 'PUT'])
@@ -52,7 +52,7 @@ def payment_mode_update(request, pk):
     ser = PaymentModeSerializer(obj, data=request.data, partial=(request.method == 'PATCH'))
     ser.is_valid(raise_exception=True)
     ser.save()
-    return Response(ser.data)
+    return Response(PaymentModeSerializer(ser.instance, context={'request': request}).data)
 
 
 @api_view(['DELETE'])

@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from core.permissions import require_role
-from core.models import Deposit, Withdraw, UserRole
+from core.models import Deposit, Withdraw, PaymentMode, UserRole
 from core.serializers import DepositSerializer, DepositCreateSerializer, WithdrawSerializer, WithdrawCreateSerializer
 
 @api_view(['POST'])
@@ -21,12 +21,20 @@ def deposit_request(request):
 def withdraw_request(request):
     err = require_role(request, [UserRole.PLAYER])
     if err: return err
-    if request.user.kyc_status != 'approved':
-        return Response({'detail': 'KYC must be approved to withdraw.'}, status=status.HTTP_400_BAD_REQUEST)
+    parent = request.user.parent
+    if not parent:
+        return Response({'detail': 'No parent account.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not PaymentMode.objects.filter(user=parent, status='approved').exists():
+        return Response({'detail': 'At least one payment method must be approved before withdrawal.'}, status=status.HTTP_400_BAD_REQUEST)
     password = request.data.get('password')
     if not password or not request.user.check_password(password):
         return Response({'detail': 'Invalid password.'}, status=status.HTTP_400_BAD_REQUEST)
     ser = WithdrawCreateSerializer(data=request.data)
     ser.is_valid(raise_exception=True)
-    wd = Withdraw.objects.create(user=request.user, **ser.validated_data)
+    data = ser.validated_data.copy()
+    payment_mode = data.get('payment_mode')
+    if payment_mode:
+        if payment_mode.user_id != parent.id or payment_mode.status != 'approved':
+            return Response({'detail': 'Selected payment method is invalid or not approved.'}, status=status.HTTP_400_BAD_REQUEST)
+    wd = Withdraw.objects.create(user=request.user, **data)
     return Response(WithdrawSerializer(wd).data, status=status.HTTP_201_CREATED)

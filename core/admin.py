@@ -53,12 +53,11 @@ class CustomUserAdmin(BaseUserAdmin):
         'bonus_balance',
         'exposure_balance',
         'exposure_limit',
-        'kyc_status',
         'is_active',
         'parent',
         'created_at',
     )
-    list_filter = ('role', 'is_active', 'kyc_status')
+    list_filter = ('role', 'is_active')
     search_fields = ('username', 'name', 'phone', 'email')
     ordering = ('-created_at',)
     filter_horizontal = ()
@@ -79,17 +78,6 @@ class CustomUserAdmin(BaseUserAdmin):
                     'bonus_balance',
                     'exposure_balance',
                     'exposure_limit',
-                ),
-            },
-        ),
-        (
-            'KYC',
-            {
-                'fields': (
-                    'kyc_status',
-                    'kyc_document',
-                    'kyc_approved_by',
-                    'kyc_reject_reason',
                 ),
             },
         ),

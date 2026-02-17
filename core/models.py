@@ -25,6 +25,12 @@ class PaymentModeType(models.TextChoices):
     BANK = 'bank', 'Bank'
 
 
+class PaymentModeStatus(models.TextChoices):
+    APPROVED = 'approved', 'Approved'
+    PENDING = 'pending', 'Pending'
+    REJECTED = 'rejected', 'Rejected'
+
+
 class RequestStatus(models.TextChoices):
     PENDING = 'pending', 'Pending'
     APPROVED = 'approved', 'Approved'
@@ -111,6 +117,7 @@ class SuperSetting(models.Model):
     game_api_token = models.CharField(max_length=255, blank=True)
     game_api_callback_url = models.URLField(blank=True)
     game_api_domain_url = models.URLField(blank=True)
+    game_api_launch_url = models.URLField(blank=True)
     min_withdraw = models.DecimalField(max_digits=16, decimal_places=2, default=default_decimal_zero)
     min_deposit = models.DecimalField(max_digits=16, decimal_places=2, default=default_decimal_zero)
     max_withdraw = models.DecimalField(max_digits=16, decimal_places=2, default=default_decimal_zero)
@@ -195,20 +202,6 @@ class User(AbstractUser):
         decimal_places=2,
         default=default_decimal_zero
     )
-    kyc_status = models.CharField(
-        max_length=20,
-        choices=KycStatus.choices,
-        default=KycStatus.PENDING
-    )
-    kyc_document = models.FileField(upload_to='kyc/', blank=True, null=True)
-    kyc_approved_by = models.ForeignKey(
-        'self',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='kyc_approvals'
-    )
-    kyc_reject_reason = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -258,7 +251,20 @@ class PaymentMode(models.Model):
     bank_branch = models.CharField(max_length=255, blank=True)
     bank_account_no = models.CharField(max_length=100, blank=True)
     bank_account_holder_name = models.CharField(max_length=255, blank=True)
-    is_active = models.BooleanField(default=True)
+    status = models.CharField(
+        max_length=20,
+        choices=PaymentModeStatus.choices,
+        default=PaymentModeStatus.PENDING
+    )
+    reject_reason = models.TextField(blank=True)
+    action_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='payment_modes_acted_on'
+    )
+    action_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -690,3 +696,19 @@ class SiteSetting(models.Model):
 
     def __str__(self):
         return self.name or f"SiteSetting (id={self.pk})"
+
+
+# --- 17. PasswordResetOTP (for forgot-password flow) ---
+
+class PasswordResetOTP(models.Model):
+    user = models.ForeignKey('core.User', on_delete=models.CASCADE, related_name='password_reset_otps')
+    otp = models.CharField(max_length=10)
+    channel = models.CharField(max_length=10)  # 'phone' or 'email'
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"OTP for user {self.user_id} ({self.channel})"

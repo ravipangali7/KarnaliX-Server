@@ -1,8 +1,9 @@
-"""Withdraw approval: user deducted, parent added. KYC check for player."""
+"""Withdraw approval: user deducted, parent added. Player must have at least one approved payment mode (parent's)."""
 from decimal import Decimal
 from django.utils import timezone
 from core.models import (
     UserRole,
+    PaymentMode,
     Withdraw,
     Transaction,
     TransactionActionType,
@@ -34,11 +35,12 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
             remarks='Withdraw approved',
         )
         return True, None
-    if user.role == UserRole.PLAYER and user.kyc_status != 'approved':
-        return False, 'KYC must be approved for player withdrawal'
     parent = user.parent
     if not parent:
         return False, 'User has no parent'
+    if user.role == UserRole.PLAYER:
+        if not PaymentMode.objects.filter(user=parent, status='approved').exists():
+            return False, 'At least one payment method must be approved before withdrawal.'
     if (user.main_balance or Decimal('0')) < amount:
         return False, 'Insufficient balance'
     user.main_balance = (user.main_balance or Decimal('0')) - amount

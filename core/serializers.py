@@ -41,36 +41,16 @@ class RegisterSerializer(serializers.Serializer):
 
 
 # --- User ---
-class KycListSerializer(serializers.ModelSerializer):
-    """For admin KYC list: user info + document URL for viewing."""
-    user_username = serializers.CharField(source='username', read_only=True)
-    status = serializers.CharField(source='kyc_status', read_only=True)
-    document_url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = User
-        fields = ['id', 'user_username', 'document_url', 'status', 'created_at']
-
-    def get_document_url(self, obj):
-        if not obj.kyc_document:
-            return None
-        request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(obj.kyc_document.url)
-        return obj.kyc_document.url
-
-
 class UserMinimalSerializer(serializers.ModelSerializer):
     """For list views and nested relations."""
     role_display = serializers.CharField(source='get_role_display', read_only=True)
-    kyc_status_display = serializers.CharField(source='get_kyc_status_display', read_only=True)
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'name', 'role', 'role_display',
             'main_balance', 'pl_balance', 'bonus_balance', 'exposure_balance', 'exposure_limit',
-            'kyc_status', 'kyc_status_display', 'is_active', 'created_at',
+            'is_active', 'created_at',
             'phone', 'whatsapp_number', 'commission_percentage', 'parent',
         ]
         read_only_fields = fields
@@ -79,21 +59,23 @@ class UserMinimalSerializer(serializers.ModelSerializer):
 class UserListSerializer(serializers.ModelSerializer):
     """List with aggregated balances for super/master (masters_balance, users_balance, etc.)."""
     role_display = serializers.CharField(source='get_role_display', read_only=True)
-    kyc_status_display = serializers.CharField(source='get_kyc_status_display', read_only=True)
     masters_balance = serializers.SerializerMethodField()
     masters_pl_balance = serializers.SerializerMethodField()
     users_balance = serializers.SerializerMethodField()
     players_count = serializers.SerializerMethodField()
     masters_count = serializers.SerializerMethodField()
+    total_balance = serializers.SerializerMethodField()
+    total_win_loss = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'name', 'role', 'role_display',
             'main_balance', 'pl_balance', 'bonus_balance', 'exposure_balance', 'exposure_limit',
-            'kyc_status', 'kyc_status_display', 'is_active', 'created_at', 'pin',
+            'is_active', 'created_at', 'pin',
             'masters_balance', 'masters_pl_balance', 'users_balance',
             'players_count', 'masters_count',
+            'total_balance', 'total_win_loss',
         ]
 
     def get_masters_balance(self, obj):
@@ -130,10 +112,25 @@ class UserListSerializer(serializers.ModelSerializer):
             return obj.children.filter(role=UserRole.MASTER).count()
         return None
 
+    def get_total_balance(self, obj):
+        """For players: main + bonus + exposure."""
+        if obj.role != UserRole.PLAYER:
+            return None
+        return (obj.main_balance or 0) + (obj.bonus_balance or 0) + (obj.exposure_balance or 0)
+
+    def get_total_win_loss(self, obj):
+        """For players: from annotated _win_sum - _lose_sum (see view annotate)."""
+        if obj.role != UserRole.PLAYER:
+            return None
+        win = getattr(obj, '_win_sum', None)
+        lose = getattr(obj, '_lose_sum', None)
+        if win is None and lose is None:
+            return None
+        return (win or 0) - (lose or 0)
+
 
 class UserDetailSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source='get_role_display', read_only=True)
-    kyc_status_display = serializers.CharField(source='get_kyc_status_display', read_only=True)
 
     class Meta:
         model = User
@@ -141,10 +138,10 @@ class UserDetailSerializer(serializers.ModelSerializer):
             'id', 'username', 'name', 'email', 'phone', 'whatsapp_number',
             'role', 'role_display', 'commission_percentage', 'parent', 'referred_by',
             'main_balance', 'pl_balance', 'bonus_balance', 'exposure_balance', 'exposure_limit',
-            'kyc_status', 'kyc_status_display', 'kyc_reject_reason', 'is_active',
+            'is_active',
             'created_at', 'updated_at', 'pin',
         ]
-        read_only_fields = ['main_balance', 'pl_balance', 'bonus_balance', 'exposure_balance', 'kyc_status']
+        read_only_fields = ['main_balance', 'pl_balance', 'bonus_balance', 'exposure_balance']
 
 
 class UserCreateUpdateSerializer(serializers.ModelSerializer):
@@ -192,7 +189,7 @@ class MeSerializer(serializers.ModelSerializer):
             'id', 'username', 'name', 'role', 'role_display',
             'main_balance', 'bonus_balance', 'pl_balance', 'exposure_balance', 'exposure_limit',
             'super_balance', 'master_balance', 'player_balance', 'total_balance',
-            'kyc_status', 'parent', 'whatsapp_number',
+            'parent', 'whatsapp_number',
         ]
 
     def get_super_balance(self, obj):
@@ -246,20 +243,46 @@ class SiteSettingSerializer(serializers.ModelSerializer):
 # --- PaymentMode ---
 class PaymentModeSerializer(serializers.ModelSerializer):
     type_display = serializers.CharField(source='get_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    qr_image_url = serializers.SerializerMethodField()
+    user_username = serializers.CharField(source='user.username', read_only=True)
 
     class Meta:
         model = PaymentMode
         fields = '__all__'
 
+    def get_qr_image_url(self, obj):
+        if not obj.qr_image:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.qr_image.url)
+        return obj.qr_image.url
+
 
 # --- Deposit ---
 class DepositSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
+    user_username = serializers.CharField(source='user.username', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    payment_mode_name = serializers.SerializerMethodField()
+    payment_mode_qr_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Deposit
         fields = '__all__'
+
+    def get_payment_mode_name(self, obj):
+        return obj.payment_mode.name if obj.payment_mode else None
+
+    def get_payment_mode_qr_image(self, obj):
+        if not obj.payment_mode or not obj.payment_mode.qr_image:
+            return None
+        request = self.context.get('request')
+        url = obj.payment_mode.qr_image.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
 
 
 class DepositCreateSerializer(serializers.ModelSerializer):
@@ -271,11 +294,26 @@ class DepositCreateSerializer(serializers.ModelSerializer):
 # --- Withdraw ---
 class WithdrawSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
+    user_username = serializers.CharField(source='user.username', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    payment_mode_name = serializers.SerializerMethodField()
+    payment_mode_qr_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Withdraw
         fields = '__all__'
+
+    def get_payment_mode_name(self, obj):
+        return obj.payment_mode.name if obj.payment_mode else None
+
+    def get_payment_mode_qr_image(self, obj):
+        if not obj.payment_mode or not obj.payment_mode.qr_image:
+            return None
+        request = self.context.get('request')
+        url = obj.payment_mode.qr_image.url
+        if request:
+            return request.build_absolute_uri(url)
+        return url
 
 
 class WithdrawCreateSerializer(serializers.ModelSerializer):
