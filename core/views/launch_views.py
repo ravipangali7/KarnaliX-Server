@@ -30,6 +30,12 @@ def _launch_game_common(request):
     user = request.user
     wallet_amount = float((user.main_balance or 0) + (user.bonus_balance or 0))
     launch_base = (getattr(settings, "game_api_launch_url", None) or "").strip() or settings.game_api_url
+    # AllAPI expects launch_game1_js; launch_game_js returns "Wrong or missing Parameter"
+    base_rstrip = launch_base.rstrip("/")
+    if base_rstrip.endswith("/launch_game_js"):
+        launch_base = base_rstrip.replace("/launch_game_js", "/launch_game1_js")
+    elif base_rstrip in ("https://allapi.online", "http://allapi.online"):
+        launch_base = base_rstrip + "/launch_game1_js"
     user_id = str(user.pk)
     domain_url = (settings.game_api_domain_url or "").strip() or None
     try:

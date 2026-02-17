@@ -8,7 +8,8 @@ from core.models import SuperSetting
 GAME_API_SECRET = "4d45bba519ac2d39d1618f57120b84b7"
 GAME_API_TOKEN = "184de030-912d-4c26-81fc-6c5cd3c05add"
 GAME_API_CALLBACK_URL = "https://kingxclub.com/api/callback"
-GAME_API_BASE_URL_DEFAULT = "https://allapi.online/launch_game_js"
+# Base URL for getProvider/providerGame; launch must use launch_game1_js (launch_game_js returns errors)
+GAME_API_BASE_URL_DEFAULT = "https://allapi.online"
 GAME_API_LAUNCH_URL_DEFAULT = "https://allapi.online/launch_game1_js"
 
 
