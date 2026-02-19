@@ -10,7 +10,7 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 
 from core.models import (
     SuperSetting,
@@ -87,16 +87,22 @@ def _get_callback_data(request):
 
 
 @csrf_exempt
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "POST", "OPTIONS"])
 def game_callback(request):
     """
+    Public endpoint (no auth, no CSRF). Game provider POSTs round results here.
     GET: return info so you can verify this URL is reachable (use this URL in provider dashboard).
+    OPTIONS: return 200 with Allow header for preflight if needed.
     POST from provider: mobile, bet_amount, win_amount, game_uid, game_round, token,
     wallet_before, wallet_after, change, timestamp, currency_code.
     Accepts form-encoded or application/json body.
     Update user balance to wallet_after, create/update GameLog, update master pl_balance.
     Return JSON {"status": "ok"}.
     """
+    if request.method == "OPTIONS":
+        response = HttpResponse(status=200)
+        response["Allow"] = "GET, POST, OPTIONS"
+        return response
     if request.method == "GET":
         return JsonResponse({
             "message": "Game callback endpoint. Configure your game provider to POST round results here.",
