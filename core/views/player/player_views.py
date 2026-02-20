@@ -83,6 +83,9 @@ def payment_mode_list_create(request):
     if request.method == 'GET':
         return Response(PaymentModeSerializer(PaymentMode.objects.filter(user=request.user), many=True, context={'request': request}).data)
     data = request.data.copy()
+    if request.FILES:
+        for key in request.FILES:
+            data[key] = request.FILES[key]
     data['user'] = request.user.id
     ser = PaymentModeSerializer(data=data)
     ser.is_valid(raise_exception=True)
