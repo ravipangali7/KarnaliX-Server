@@ -25,6 +25,12 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        try:
+            from daphne.cli import CommandLineInterface as DaphneCLI
+        except ImportError:
+            self.stderr.write("Install daphne: pip install daphne")
+            sys.exit(1)
+
         addrport = options["addrport"]
         if ":" in addrport:
             host, port = addrport.rsplit(":", 1)
@@ -33,20 +39,10 @@ class Command(BaseCommand):
 
         os.environ.setdefault("DJANGO_SETTINGS_MODULE", "karnalix.settings")
 
-        # Run Daphne in this process (replaces current process)
         asgi_app = "karnalix.asgi:application"
         self.stdout.write(f"Starting Daphne (HTTP + WebSocket) on {host}:{port} …")
         self.stdout.write("Quit with CTRL-BREAK.")
 
-        # Daphne expects argv like: daphne -b host -p port asgi_app
         argv = ["daphne", "-b", host, "-p", str(port), asgi_app]
         sys.argv = argv
         DaphneCLI().run()
-
-        try:
-            from daphne.cli import CommandLineInterface as DaphneCLI
-        except ImportError:
-            self.stderr.write(
-                "Install daphne: pip install daphne"
-            )
-            sys.exit(1)
