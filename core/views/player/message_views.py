@@ -14,7 +14,12 @@ def message_list(request):
     if err: return err
     partner_id = request.query_params.get('partner_id')
     qs = Message.objects.filter(sender=request.user) | Message.objects.filter(receiver=request.user)
-    if partner_id: qs = qs.filter(sender_id=partner_id) | qs.filter(receiver_id=partner_id)
+    if partner_id:
+        try:
+            pid = int(partner_id)
+            qs = qs.filter(sender_id=pid) | qs.filter(receiver_id=pid)
+        except (TypeError, ValueError):
+            pass
     qs = qs.select_related('sender', 'receiver').order_by('created_at')[:200]
     return Response(MessageSerializer(qs.distinct(), many=True).data)
 
