@@ -37,7 +37,12 @@ def message_create(request):
     if not receiver:
         return Response({'detail': 'Invalid receiver.'}, status=status.HTTP_400_BAD_REQUEST)
     data = {**request.data, 'receiver': receiver_id}
-    ser = MessageCreateSerializer(data=data, files=request.FILES)
+    if request.FILES:
+        if 'file' in request.FILES:
+            data['file'] = request.FILES['file']
+        if 'image' in request.FILES:
+            data['image'] = request.FILES['image']
+    ser = MessageCreateSerializer(data=data)
     ser.is_valid(raise_exception=True)
     msg = ser.save(sender=request.user)
     data = MessageSerializer(msg).data
