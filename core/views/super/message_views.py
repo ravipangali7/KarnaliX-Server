@@ -28,13 +28,7 @@ def message_create(request):
     if not receiver: return Response({'detail': 'Invalid receiver.'}, status=status.HTTP_400_BAD_REQUEST)
     if receiver.role == UserRole.MASTER and receiver.parent_id != request.user.id: return Response({'detail': 'Invalid receiver.'}, status=status.HTTP_400_BAD_REQUEST)
     if receiver.role == UserRole.POWERHOUSE and receiver.id != request.user.parent_id: return Response({'detail': 'Invalid receiver.'}, status=status.HTTP_400_BAD_REQUEST)
-    data = {**request.data, 'receiver': receiver_id}
-    if request.FILES:
-        if 'file' in request.FILES:
-            data['file'] = request.FILES['file']
-        if 'image' in request.FILES:
-            data['image'] = request.FILES['image']
-    ser = MessageCreateSerializer(data=data)
+    ser = MessageCreateSerializer(data={**request.data, 'receiver': receiver_id})
     ser.is_valid(raise_exception=True)
     msg = ser.save(sender=request.user)
     data = MessageSerializer(msg).data
