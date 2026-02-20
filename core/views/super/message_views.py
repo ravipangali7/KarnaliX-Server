@@ -33,6 +33,7 @@ def message_create(request):
     msg = ser.save(sender=request.user)
     data = MessageSerializer(msg).data
     broadcast_new_message_to_receiver(msg.receiver_id, data)
+    broadcast_new_message_to_receiver(msg.sender_id, data)
     return Response(data, status=status.HTTP_201_CREATED)
 
 
