@@ -42,7 +42,8 @@ def message_create(request):
         return Response({'detail': 'Invalid receiver.'}, status=status.HTTP_400_BAD_REQUEST)
     if receiver.role == UserRole.SUPER and receiver.id != request.user.parent_id:
         return Response({'detail': 'Invalid receiver.'}, status=status.HTTP_400_BAD_REQUEST)
-    ser = MessageCreateSerializer(data={**request.data, 'receiver': receiver_id})
+    data = {**request.data, 'receiver': receiver_id}
+    ser = MessageCreateSerializer(data=data, files=request.FILES)
     ser.is_valid(raise_exception=True)
     msg = ser.save(sender=request.user)
     data = MessageSerializer(msg).data

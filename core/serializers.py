@@ -437,9 +437,21 @@ class MessageSerializer(serializers.ModelSerializer):
 
 
 class MessageCreateSerializer(serializers.ModelSerializer):
+    message = serializers.CharField(required=False, allow_blank=True)
+
     class Meta:
         model = Message
         fields = ['receiver', 'message', 'file', 'image']
+
+    def validate(self, attrs):
+        message = (attrs.get('message') or '').strip()
+        file_obj = attrs.get('file')
+        image_obj = attrs.get('image')
+        if not message and not file_obj and not image_obj:
+            raise serializers.ValidationError('Provide at least one of message, file, or image.')
+        if not message:
+            attrs['message'] = ''
+        return attrs
 
 
 # --- Testimonial ---

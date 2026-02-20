@@ -65,11 +65,21 @@ ROOT_URLCONF = 'karnalix.urls'
 
 ASGI_APPLICATION = 'karnalix.asgi.application'
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-    },
-}
+# Use Redis in production (set CHANNEL_LAYERS_REDIS_URL) so WebSocket broadcasts work across workers
+_redis_url = os.environ.get('CHANNEL_LAYERS_REDIS_URL', '').strip()
+if _redis_url:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {'hosts': [_redis_url]},
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

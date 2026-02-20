@@ -28,9 +28,13 @@ def message_list(request):
 def message_create(request):
     err = require_role(request, [UserRole.PLAYER])
     if err: return err
-    receiver_id = request.data.get('receiver')
+    try:
+        receiver_id = int(request.data.get('receiver'))
+    except (TypeError, ValueError):
+        return Response({'detail': 'Invalid receiver.'}, status=status.HTTP_400_BAD_REQUEST)
     if receiver_id != request.user.parent_id: return Response({'detail': 'Invalid receiver.'}, status=status.HTTP_400_BAD_REQUEST)
-    ser = MessageCreateSerializer(data={**request.data, 'receiver': receiver_id})
+    data = {**request.data, 'receiver': receiver_id}
+    ser = MessageCreateSerializer(data=data, files=request.FILES)
     ser.is_valid(raise_exception=True)
     msg = ser.save(sender=request.user)
     data = MessageSerializer(msg).data
