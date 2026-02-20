@@ -6,6 +6,16 @@ from core.permissions import require_role
 from core.models import UserRole, Deposit, Withdraw, Transaction, GameLog, PaymentMode
 from core.serializers import DepositSerializer, WithdrawSerializer, TransactionSerializer, GameLogSerializer, PaymentModeSerializer
 
+
+def _get_related_transaction(game_log):
+    """Return the transaction linked to this game log (by FK or by user + remarks)."""
+    if hasattr(game_log, 'transactions') and game_log.transactions.exists():
+        return game_log.transactions.first()
+    return Transaction.objects.filter(
+        user=game_log.user,
+        remarks=f"Game round {game_log.round}",
+    ).first()
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def wallet(request):
@@ -33,6 +43,23 @@ def game_log_list(request):
     err = require_role(request, [UserRole.PLAYER])
     if err: return err
     return Response(GameLogSerializer(GameLog.objects.filter(user=request.user).select_related('game', 'provider').order_by('-created_at')[:200], many=True).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def game_log_detail(request, pk):
+    err = require_role(request, [UserRole.PLAYER])
+    if err:
+        return err
+    log = GameLog.objects.filter(user=request.user, pk=pk).select_related('game', 'provider', 'user').first()
+    if not log:
+        return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    tx = _get_related_transaction(log)
+    return Response({
+        'game_log': GameLogSerializer(log).data,
+        'transaction': TransactionSerializer(tx).data if tx else None,
+    })
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

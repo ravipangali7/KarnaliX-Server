@@ -56,6 +56,7 @@ urlpatterns = [
     path('withdrawals/<int:pk>/approve/', withdraw_views.withdraw_approve),
     path('withdrawals/<int:pk>/reject/', withdraw_views.withdraw_reject),
     path('game-log/', game_log_views.game_log_list),
+    path('game-log/<int:pk>/', game_log_views.game_log_detail),
     path('transactions/', transaction_views.transaction_list),
     path('activity/', activity_views.activity_list),
     path('categories/', game_views.category_list_create),

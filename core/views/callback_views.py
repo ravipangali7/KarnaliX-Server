@@ -196,6 +196,9 @@ def game_callback(request):
         amount=abs(net),
         status=TransactionStatus.SUCCESS,
         remarks=f"Game round {game_round}",
+        game_log=game_log,
+        balance_before=wallet_before,
+        balance_after=wallet_after,
     )
 
     logger.info(
