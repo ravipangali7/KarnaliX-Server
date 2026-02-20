@@ -39,8 +39,8 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
     if not parent:
         return False, 'User has no parent'
     if user.role == UserRole.PLAYER:
-        if not PaymentMode.objects.filter(user=parent, status='approved').exists():
-            return False, 'At least one payment method must be approved before withdrawal.'
+        if not PaymentMode.objects.filter(user=user, status='approved').exists():
+            return False, 'At least one of the player\'s payment methods must be approved before withdrawal.'
     if (user.main_balance or Decimal('0')) < amount:
         return False, 'Insufficient balance'
     user.main_balance = (user.main_balance or Decimal('0')) - amount

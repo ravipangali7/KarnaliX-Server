@@ -22,7 +22,7 @@ def payment_mode_list(request):
         return Response(PaymentModeSerializer(_qs(request), many=True, context={'request': request}).data)
     data = request.data.copy()
     data['user'] = request.user.id
-    data.setdefault('status', PaymentModeStatus.APPROVED)
+    data['status'] = PaymentModeStatus.APPROVED
     ser = PaymentModeSerializer(data=data)
     ser.is_valid(raise_exception=True)
     ser.save()

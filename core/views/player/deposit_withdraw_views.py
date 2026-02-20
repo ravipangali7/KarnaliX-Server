@@ -24,8 +24,8 @@ def withdraw_request(request):
     parent = request.user.parent
     if not parent:
         return Response({'detail': 'No parent account.'}, status=status.HTTP_400_BAD_REQUEST)
-    if not PaymentMode.objects.filter(user=parent, status='approved').exists():
-        return Response({'detail': 'At least one payment method must be approved before withdrawal.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not PaymentMode.objects.filter(user=request.user, status='approved').exists():
+        return Response({'detail': 'At least one of your payment methods must be approved before withdrawal.'}, status=status.HTTP_400_BAD_REQUEST)
     password = request.data.get('password')
     if not password or not request.user.check_password(password):
         return Response({'detail': 'Invalid password.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -34,7 +34,7 @@ def withdraw_request(request):
     data = ser.validated_data.copy()
     payment_mode = data.get('payment_mode')
     if payment_mode:
-        if payment_mode.user_id != parent.id or payment_mode.status != 'approved':
+        if payment_mode.user_id != request.user.id or payment_mode.status != 'approved':
             return Response({'detail': 'Selected payment method is invalid or not approved.'}, status=status.HTTP_400_BAD_REQUEST)
     wd = Withdraw.objects.create(user=request.user, **data)
     return Response(WithdrawSerializer(wd).data, status=status.HTTP_201_CREATED)

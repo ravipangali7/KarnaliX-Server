@@ -1,4 +1,4 @@
-"""Master: List own payment modes (pending), approve/reject."""
+"""Master: List children's (players') payment modes for verification, approve/reject."""
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,7 +10,8 @@ from core.serializers import PaymentModeSerializer
 
 
 def _qs(request):
-    return PaymentMode.objects.filter(user=request.user)
+    """Payment modes belonging to the master's children (players)."""
+    return PaymentMode.objects.filter(user__parent=request.user)
 
 
 @api_view(['GET'])
@@ -21,8 +22,12 @@ def payment_mode_verification_list(request):
         return err
     status_filter = request.query_params.get('status')
     qs = _qs(request).select_related('user', 'action_by').order_by('-created_at')
-    if status_filter and status_filter != 'all':
+    if status_filter == 'all':
+        pass
+    elif status_filter:
         qs = qs.filter(status=status_filter)
+    else:
+        qs = qs.filter(status='pending')
     return Response(PaymentModeSerializer(qs, many=True, context={'request': request}).data)
 
 
