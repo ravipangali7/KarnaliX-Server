@@ -20,8 +20,8 @@ def message_list(request):
             qs = qs.filter(sender_id=pid) | qs.filter(receiver_id=pid)
         except (TypeError, ValueError):
             pass
-    qs = qs.select_related('sender', 'receiver').order_by('created_at')[:200]
-    return Response(MessageSerializer(qs.distinct(), many=True).data)
+    qs = qs.select_related('sender', 'receiver').order_by('created_at').distinct()[:200]
+    return Response(MessageSerializer(qs, many=True).data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
