@@ -5,6 +5,11 @@ from rest_framework import status
 from core.permissions import require_role
 from core.models import Message, User, UserRole
 from core.serializers import MessageSerializer, MessageCreateSerializer
+from core.channel_utils import broadcast_new_message_to_receiver
+
+
+def _user_to_contact(u):
+    return {'id': u.id, 'username': u.username, 'name': u.name or u.username, 'role': u.role}
 
 
 @api_view(['GET'])
@@ -34,4 +39,17 @@ def message_create(request):
     ser = MessageCreateSerializer(data={**request.data, 'receiver': receiver_id})
     ser.is_valid(raise_exception=True)
     msg = ser.save(sender=request.user)
-    return Response(MessageSerializer(msg).data, status=status.HTTP_201_CREATED)
+    data = MessageSerializer(msg).data
+    broadcast_new_message_to_receiver(msg.receiver_id, data)
+    return Response(data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def message_contacts(request):
+    """Return allowed conversation partners: all supers under this powerhouse."""
+    err = require_role(request, [UserRole.POWERHOUSE])
+    if err:
+        return err
+    partners = [ _user_to_contact(u) for u in User.objects.filter(parent=request.user, role=UserRole.SUPER).order_by('username') ]
+    return Response(partners)

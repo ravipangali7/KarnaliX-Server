@@ -35,6 +35,7 @@ urlpatterns = [
     path('transactions/', transaction_views.transaction_list),
     path('activity/', activity_views.activity_list),
     path('messages/', message_views.message_list),
+    path('messages/contacts/', message_views.message_contacts),
     path('messages/send/', message_views.message_create),
     path('payment-modes/', payment_mode_views.payment_mode_list),
     path('payment-modes/<int:pk>/', payment_mode_views.payment_mode_detail),

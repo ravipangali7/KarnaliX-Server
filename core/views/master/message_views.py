@@ -6,6 +6,7 @@ from rest_framework import status
 from core.permissions import require_role
 from core.models import Message, User, UserRole
 from core.serializers import MessageSerializer, MessageCreateSerializer
+from core.channel_utils import broadcast_new_message_to_receiver
 
 
 @api_view(['GET'])
@@ -44,4 +45,24 @@ def message_create(request):
     ser = MessageCreateSerializer(data={**request.data, 'receiver': receiver_id})
     ser.is_valid(raise_exception=True)
     msg = ser.save(sender=request.user)
-    return Response(MessageSerializer(msg).data, status=status.HTTP_201_CREATED)
+    data = MessageSerializer(msg).data
+    broadcast_new_message_to_receiver(msg.receiver_id, data)
+    return Response(data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def message_contacts(request):
+    """Return allowed conversation partners: parent (Super) + all players under this master."""
+    err = require_role(request, [UserRole.MASTER])
+    if err:
+        return err
+    partners = []
+    if request.user.parent_id:
+        parent = User.objects.filter(pk=request.user.parent_id).first()
+        if parent:
+            partners.append({'id': parent.id, 'username': parent.username, 'name': parent.name or parent.username, 'role': parent.role})
+    children = User.objects.filter(parent=request.user, role=UserRole.PLAYER).order_by('username')
+    for u in children:
+        partners.append({'id': u.id, 'username': u.username, 'name': u.name or u.username, 'role': u.role})
+    return Response(partners)

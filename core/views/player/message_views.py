@@ -5,6 +5,7 @@ from rest_framework import status
 from core.permissions import require_role
 from core.models import Message, UserRole
 from core.serializers import MessageSerializer, MessageCreateSerializer
+from core.channel_utils import broadcast_new_message_to_receiver
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -27,4 +28,6 @@ def message_create(request):
     ser = MessageCreateSerializer(data={**request.data, 'receiver': receiver_id})
     ser.is_valid(raise_exception=True)
     msg = ser.save(sender=request.user)
-    return Response(MessageSerializer(msg).data, status=status.HTTP_201_CREATED)
+    data = MessageSerializer(msg).data
+    broadcast_new_message_to_receiver(msg.receiver_id, data)
+    return Response(data, status=status.HTTP_201_CREATED)

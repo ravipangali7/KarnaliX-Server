@@ -690,6 +690,9 @@ class SiteSetting(models.Model):
     )
     instant_payouts = models.PositiveIntegerField(default=0)
     footer_description = models.TextField(blank=True)
+    home_stats = models.JSONField(default=list, blank=True)
+    biggest_wins = models.JSONField(default=list, blank=True)
+    promo_banners = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
