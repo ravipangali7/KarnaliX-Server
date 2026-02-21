@@ -7,26 +7,82 @@ def _normalize_for_match(s: str) -> str:
     return "".join(c for c in (s or "").lower() if c.isalnum())
 
 
+# Minimum overlap length to consider a partial match (avoids "a" matching "game")
+MIN_PARTIAL_OVERLAP = 3
+
+
+def _longest_common_substring(s: str, t: str) -> int:
+    """Length of longest common substring of s and t (for flexible matching e.g. ravigame vs ravilib -> ravi)."""
+    if not s or not t:
+        return 0
+    m, n = len(s), len(t)
+    # dp[i][j] = length of LCS ending at s[i-1], t[j-1]
+    prev = [0] * (n + 1)
+    best = 0
+    for i in range(1, m + 1):
+        curr = [0] * (n + 1)
+        for j in range(1, n + 1):
+            if s[i - 1] == t[j - 1]:
+                curr[j] = prev[j - 1] + 1
+                best = max(best, curr[j])
+            else:
+                curr[j] = 0
+        prev = curr
+    return best
+
+
 def _partial_match_score(game_norm: str, stem_norm: str) -> int | None:
     """
-    If game name and stem match partially (one contains the other), return a score for ranking.
-    Higher = better (longer overlap). Return None if no partial match.
+    Powerful partial match: containment (ravi in ravigame), prefix/suffix, or longest common substring (ravigame vs ravilib).
+    Returns best score for ranking; None if overlap below MIN_PARTIAL_OVERLAP.
     """
     if not game_norm or not stem_norm:
         return None
+    scores: list[int] = []
+
+    # Exact equality
     if game_norm == stem_norm:
-        return len(game_norm)
+        return len(game_norm) * 2
+
+    # One contains the other (ravi <-> ravigame, ravi <-> ravilib)
     if game_norm in stem_norm:
-        return len(game_norm)
+        scores.append(len(game_norm))
     if stem_norm in game_norm:
-        return len(stem_norm)
-    return None
+        scores.append(len(stem_norm))
+
+    # Common prefix (ravi + ravigame -> 4)
+    prefix = 0
+    for i in range(min(len(game_norm), len(stem_norm))):
+        if game_norm[i] == stem_norm[i]:
+            prefix += 1
+        else:
+            break
+    if prefix >= MIN_PARTIAL_OVERLAP:
+        scores.append(prefix)
+
+    # Common suffix
+    suffix = 0
+    for i in range(1, min(len(game_norm), len(stem_norm)) + 1):
+        if game_norm[-i] == stem_norm[-i]:
+            suffix += 1
+        else:
+            break
+    if suffix >= MIN_PARTIAL_OVERLAP:
+        scores.append(suffix)
+
+    # Longest common substring when neither contains the other (e.g. ravigame vs ravilib -> ravi = 4)
+    lcs = _longest_common_substring(game_norm, stem_norm)
+    if lcs >= MIN_PARTIAL_OVERLAP:
+        scores.append(lcs)
+
+    return max(scores) if scores else None
 
 
 def find_image_for_game(folder: Path, game_name: str, game_uid: str = "") -> Path | None:
     """
     Return path to a .webp or .png in folder matching game_name or game_uid.
-    Order: exact name -> normalized name -> exact uid -> normalized uid -> partial match (name in stem or stem in name).
+    Order: exact -> normalized -> partial. Partial match uses powerful rules: one contains the other
+    (ravi/ravigame), common prefix/suffix, or longest common substring (ravigame/ravilib); min overlap 3 chars.
     """
     if not folder.exists():
         return None
@@ -53,7 +109,7 @@ def find_image_for_game(folder: Path, game_name: str, game_uid: str = "") -> Pat
         return None
 
     def try_partial(value: str) -> Path | None:
-        """Best partial match: normalized value contained in stem or stem in value; prefer longest match."""
+        """Best partial match: containment (ravi<->ravigame), prefix/suffix, or LCS (ravigame<->ravilib); prefer longest overlap."""
         if not value:
             return None
         value_norm = _normalize_for_match(value)
@@ -101,16 +157,19 @@ def find_image_for_game(folder: Path, game_name: str, game_uid: str = "") -> Pat
 def get_image_folder_candidates(docs_games: Path, provider_code: str) -> list[Path]:
     """
     Return candidate image folders for a provider (e.g. spribe, evolution_live).
-    Tries: <provider_code>, <provider_code_no_underscore>webp, and common variants
-    so evolutionwebp, pragmaticlivewebp, sexygamingwebp etc. are found.
+    Tries: <provider_code>, <provider_code_no_underscore>webp, and first-word + webp (evolutionwebp).
     """
     candidates: list[Path] = []
     # Exact slug folder (e.g. spribe, evolution_live)
     candidates.append(docs_games / provider_code)
-    # No-underscore + "webp" (e.g. evolutionwebp, pragmaticlivewebp)
+    # No-underscore + "webp" (e.g. evolutionlivewebp, pragmaticlivewebp, sexygamingwebp)
     no_underscore = provider_code.replace("_", "")
     if no_underscore:
         candidates.append(docs_games / f"{no_underscore}webp")
+    # First segment + "webp" (e.g. evolution_live -> evolutionwebp)
+    first_part = provider_code.split("_")[0] if provider_code else ""
+    if first_part and first_part != no_underscore:
+        candidates.append(docs_games / f"{first_part}webp")
     return candidates
 
 

@@ -20,8 +20,9 @@ from core.management.utils import (
 # docs/games relative to project root (parent of Django BASE_DIR)
 DOCS_GAMES = Path(settings.BASE_DIR).parent / "docs" / "games"
 
-# Row: (provider_code, provider_display_name, game_name, game_uid, category_or_none)
-GameRow = tuple[str, str, str, str, str | None]
+# Row: (provider_code, provider_display_name, game_name, game_uid, category_or_none, image_folder_slug_or_none)
+# image_folder_slug: used only for image lookup; when set (from XLSX filename), use it instead of provider_code for folders
+GameRow = tuple[str, str, str, str, str | None, str | None]
 
 
 def load_txt(docs_games: Path) -> list[GameRow]:
@@ -48,14 +49,14 @@ def load_txt(docs_games: Path) -> list[GameRow]:
                     name = name or game_uid
                     code = provider_code_to_slug(provider)
                     display = provider.strip()[:255]
-                    rows.append((code, display, name[:255], game_uid[:255], category[:255] if category else None))
+                    rows.append((code, display, name[:255], game_uid[:255], category[:255] if category else None, None))
             elif len(parts) == 2 and parts[0] and parts[1]:
                 # provider, game_uid (e.g. lucksportsgaming.txt)
                 provider, game_uid = parts[0], parts[1]
                 code = provider_code_to_slug(provider)
                 display = provider.strip()[:255]
                 name = game_uid[:255]
-                rows.append((code, display, name, game_uid[:255], None))
+                rows.append((code, display, name, game_uid[:255], None, None))
     return rows
 
 
@@ -131,7 +132,8 @@ def load_xlsx(docs_games: Path) -> list[GameRow]:
                 category = None
                 if category_col is not None and category_col < len(values) and values[category_col]:
                     category = values[category_col][:255]
-                rows.append((provider_code, provider_name[:255], game_name, game_uid, category))
+                # Use filename for image folder lookup so evolution_live/evolutionwebp etc. are found
+                rows.append((provider_code, provider_name[:255], game_name, game_uid, category, file_provider_code))
         finally:
             wb.close()
     return rows
@@ -211,7 +213,7 @@ class Command(BaseCommand):
 
         # Distinct providers first (by code)
         seen_providers: dict[str, str] = {}
-        for provider_code, provider_name, _gn, _uid, _cat in all_rows:
+        for provider_code, provider_name, _gn, _uid, _cat, _img in all_rows:
             if provider_code not in seen_providers:
                 seen_providers[provider_code] = provider_name
 
@@ -224,7 +226,7 @@ class Command(BaseCommand):
                 if created:
                     created_providers += 1
 
-        for provider_code, _provider_name, game_name, game_uid, category_name in all_rows:
+        for provider_code, _provider_name, game_name, game_uid, category_name, image_folder_slug in all_rows:
             if dry_run:
                 created_games += 1
                 continue
@@ -250,7 +252,8 @@ class Command(BaseCommand):
             if images_only:
                 game = Game.objects.filter(provider=provider, game_uid=game_uid).first()
                 if game and not game.image:
-                    folder_candidates = get_image_folder_candidates(docs_games, provider_code)
+                    slug_for_images = image_folder_slug if image_folder_slug is not None else provider_code
+                    folder_candidates = get_image_folder_candidates(docs_games, slug_for_images)
                     path = find_image_for_game_in_folders(folder_candidates, game_name, game_uid)
                     if path:
                         with open(path, "rb") as f:
@@ -274,9 +277,10 @@ class Command(BaseCommand):
             else:
                 skipped_games += 1
 
-            # Set image when created or missing (try all provider image folders: slug, slugwebp, etc.)
+            # Set image when created or missing (use XLSX filename slug for folder when available)
             if game_created or not game.image:
-                folder_candidates = get_image_folder_candidates(docs_games, provider_code)
+                slug_for_images = image_folder_slug if image_folder_slug is not None else provider_code
+                folder_candidates = get_image_folder_candidates(docs_games, slug_for_images)
                 path = find_image_for_game_in_folders(folder_candidates, game_name, game_uid)
                 if path:
                     try:
