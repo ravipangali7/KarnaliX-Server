@@ -1,6 +1,7 @@
 """
 Seed only allowed providers and their games from docs/games (TXT, XLSX, and JILI).
-Providers: spribe, sexy gaming, smart soft gaming, saba sports, pragmatic live, luck sport gaming, evo play asia, evolution live, jili.
+Providers (9): Jili, Spribe, Evolution Live, Evoplay Asia, Pragmatic Live, Luck Sports Gaming, Saba Sports, Sexy Gaming, SmartSoft Gaming.
+XLSX first row: id, game_api (provider), game_name, game_id.
 Uses get_or_create so runs are idempotent. Images from docs/games (e.g. jiliwebp, spribe, evolutionwebp).
 --full-reset: delete all Game, GameCategory, GameProvider then re-seed (providers first, then categories, then games with images).
 """
@@ -111,10 +112,10 @@ def load_xlsx(docs_games: Path) -> list[GameRow]:
                         return i
                 return None
 
-            provider_col = 0
-            # Prefer only game-related headers; do not use col("name") as it matches "Provider Name"
-            game_col = col("game") or col("gamename") or 1
-            uid_col = col("gameuid") or col("uid") or col("game_uid") or 2
+            # XLSX columns: id, game_api (provider), game_name, game_id. Prefer game_name column
+            # so we do not pick game_api (col("game") matches "game_api"); do not use col("name") (matches "Provider Name").
+            game_col = col("gamename") or col("game_name") or col("game") or 1
+            uid_col = col("gameid") or col("game_uid") or col("gameuid") or col("uid") or 2
             category_col = col("category") or col("cat")
 
             for row in sheet.iter_rows(min_row=2):
@@ -128,7 +129,7 @@ def load_xlsx(docs_games: Path) -> list[GameRow]:
                 category = None
                 if category_col is not None and category_col < len(values) and values[category_col]:
                     category = values[category_col][:255]
-                # Always use filename as provider so we only have these 8 + jili
+                # Always use filename as provider (one of the 9 allowed providers)
                 rows.append((file_provider_code, file_provider_name[:255], game_name, game_uid, category, file_provider_code))
         finally:
             wb.close()
@@ -156,8 +157,8 @@ JILI_API_TOKEN = "184de030-912d-4c26-81fc-6c5cd3c05add"
 
 class Command(BaseCommand):
     help = (
-        "Seed only allowed providers (spribe, sexy gaming, smart soft, saba sports, pragmatic live, luck sport, evoplay asia, evolution live, jili) from docs/games. "
-        "Includes JILI games and launch config. --full-reset: delete all Game, GameCategory, GameProvider then re-seed (providers, then categories, then games with images)."
+        "Seed 9 providers (Jili, Spribe, Evolution Live, Evoplay Asia, Pragmatic Live, Luck Sports Gaming, Saba Sports, Sexy Gaming, SmartSoft Gaming) from docs/games. "
+        "XLSX columns: id, game_api, game_name, game_id. Includes JILI launch config. --full-reset: delete all Game, GameCategory, GameProvider then re-seed."
     )
 
     def add_arguments(self, parser):
