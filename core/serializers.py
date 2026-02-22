@@ -8,6 +8,9 @@ from .models import (
     UserRole,
     SuperSetting,
     SiteSetting,
+    SliderSlide,
+    LiveBettingSection,
+    LiveBettingEvent,
     PaymentMode,
     Deposit,
     Withdraw,
@@ -236,6 +239,28 @@ class SuperSettingSerializer(serializers.ModelSerializer):
 class SiteSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = SiteSetting
+        fields = '__all__'
+
+
+# --- SliderSlide ---
+class SliderSlideSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SliderSlide
+        fields = '__all__'
+
+
+# --- LiveBetting ---
+class LiveBettingEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LiveBettingEvent
+        fields = '__all__'
+
+
+class LiveBettingSectionSerializer(serializers.ModelSerializer):
+    events = LiveBettingEventSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = LiveBettingSection
         fields = '__all__'
 
 

@@ -721,6 +721,72 @@ class SiteSetting(models.Model):
         return self.name or f"SiteSetting (id={self.pk})"
 
 
+# --- 16b. SliderSlide (second home slider) ---
+
+class SliderSlide(models.Model):
+    title = models.CharField(max_length=500)
+    subtitle = models.CharField(max_length=500, blank=True)
+    image = models.CharField(max_length=1000, blank=True)  # URL or path
+    cta_label = models.CharField(max_length=100, default='Join Now')
+    cta_link = models.CharField(max_length=500, default='/register')
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name = 'Slider Slide'
+        verbose_name_plural = 'Slider Slides'
+
+    def __str__(self):
+        return self.title[:50] or f"Slide {self.pk}"
+
+
+# --- 16c. LiveBettingSection (second home live betting block) ---
+
+class LiveBettingSection(models.Model):
+    title = models.CharField(max_length=255)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name = 'Live Betting Section'
+        verbose_name_plural = 'Live Betting Sections'
+
+    def __str__(self):
+        return self.title
+
+
+# --- 16d. LiveBettingEvent ---
+
+class LiveBettingEvent(models.Model):
+    section = models.ForeignKey(
+        LiveBettingSection,
+        on_delete=models.CASCADE,
+        related_name='events',
+    )
+    sport = models.CharField(max_length=100, blank=True)
+    team1 = models.CharField(max_length=255)
+    team2 = models.CharField(max_length=255)
+    event_date = models.CharField(max_length=50, blank=True)  # e.g. "19 Mar 2026"
+    event_time = models.CharField(max_length=20, blank=True)  # e.g. "23:00"
+    odds = models.JSONField(default=list, blank=True)  # list of numbers e.g. [1.92, 1.92, 2.1]
+    is_live = models.BooleanField(default=False)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['section', 'order', 'id']
+        verbose_name = 'Live Betting Event'
+        verbose_name_plural = 'Live Betting Events'
+
+    def __str__(self):
+        return f"{self.team1} vs {self.team2}"
+
+
 # --- 17. PasswordResetOTP (for forgot-password flow) ---
 
 class PasswordResetOTP(models.Model):

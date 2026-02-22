@@ -19,6 +19,9 @@ from .models import (
     Testimonial,
     CMSPage,
     SiteSetting,
+    SliderSlide,
+    LiveBettingSection,
+    LiveBettingEvent,
     SignupOTP,
     SignupSession,
 )
@@ -342,3 +345,31 @@ class SiteSettingAdmin(SingletonAdminMixin, admin.ModelAdmin):
         'updated_at',
     )
     readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(SliderSlide)
+class SliderSlideAdmin(admin.ModelAdmin):
+    list_display = ('id', 'title', 'order', 'updated_at')
+    list_editable = ('order',)
+    ordering = ('order', 'id')
+
+
+class LiveBettingEventInline(admin.TabularInline):
+    model = LiveBettingEvent
+    extra = 0
+    ordering = ('order', 'id')
+
+
+@admin.register(LiveBettingSection)
+class LiveBettingSectionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'title', 'order', 'updated_at')
+    list_editable = ('order',)
+    ordering = ('order', 'id')
+    inlines = (LiveBettingEventInline,)
+
+
+@admin.register(LiveBettingEvent)
+class LiveBettingEventAdmin(admin.ModelAdmin):
+    list_display = ('id', 'section', 'team1', 'team2', 'event_date', 'event_time', 'is_live', 'order')
+    list_filter = ('section', 'is_live')
+    ordering = ('section', 'order', 'id')

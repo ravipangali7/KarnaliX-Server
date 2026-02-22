@@ -6,8 +6,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
-from core.models import SiteSetting, CMSPage, Testimonial
-from core.serializers import SiteSettingSerializer, CMSPageSerializer, TestimonialSerializer
+from core.models import SiteSetting, CMSPage, Testimonial, SliderSlide, LiveBettingSection
+from core.serializers import SiteSettingSerializer, CMSPageSerializer, TestimonialSerializer, SliderSlideSerializer, LiveBettingSectionSerializer
 
 
 @api_view(['GET'])
@@ -47,4 +47,22 @@ def testimonials_list(request):
     """GET testimonials for public (e.g. home page)."""
     qs = Testimonial.objects.all()
     serializer = TestimonialSerializer(qs, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def slider_list(request):
+    """GET slider slides for second home (ordered)."""
+    qs = SliderSlide.objects.all()
+    serializer = SliderSlideSerializer(qs, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def live_betting_list(request):
+    """GET live betting sections with events for second home."""
+    qs = LiveBettingSection.objects.prefetch_related('events').all()
+    serializer = LiveBettingSectionSerializer(qs, many=True)
     return Response(serializer.data)
