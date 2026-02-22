@@ -408,8 +408,8 @@ class GameListSerializer(serializers.ModelSerializer):
 
 
 class GameDetailSerializer(serializers.ModelSerializer):
-    category = GameCategorySerializer(read_only=True)
-    provider = GameProviderSerializer(read_only=True)
+    category = serializers.PrimaryKeyRelatedField(queryset=GameCategory.objects.all())
+    provider = serializers.PrimaryKeyRelatedField(queryset=GameProvider.objects.all())
 
     class Meta:
         model = Game
