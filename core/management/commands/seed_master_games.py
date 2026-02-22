@@ -112,7 +112,8 @@ def load_xlsx(docs_games: Path) -> list[GameRow]:
                 return None
 
             provider_col = 0
-            game_col = col("game") or col("gamename") or col("name") or 1
+            # Prefer only game-related headers; do not use col("name") as it matches "Provider Name"
+            game_col = col("game") or col("gamename") or 1
             uid_col = col("gameuid") or col("uid") or col("game_uid") or 2
             category_col = col("category") or col("cat")
 
