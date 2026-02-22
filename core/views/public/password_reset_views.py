@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from core.models import User, PasswordResetOTP, SiteSetting
+from core.services.sms_service import send_sms
 
 
 def _mask_phone(phone):
@@ -112,9 +113,11 @@ def forgot_password_send_otp(request):
     expires_at = timezone.now() + timedelta(minutes=10)
     PasswordResetOTP.objects.create(user=user, otp=otp, channel=channel, expires_at=expires_at)
 
-    # TODO: integrate SMS/email provider; for now just log or stub
-    # if channel == 'phone': send_sms(user.phone, f'Your reset code: {otp}')
-    # if channel == 'email': send_email(user.email, 'Reset code', f'Your code: {otp}')
+    if channel == "phone" and user.phone:
+        ok, msg = send_sms(user.phone, f"Your KarnaliX reset code: {otp}")
+        if not ok:
+            return Response({"detail": msg or "Failed to send SMS."}, status=status.HTTP_502_BAD_GATEWAY)
+    # email sending not implemented; would need an email backend
 
     return Response({"detail": "OTP sent."})
 

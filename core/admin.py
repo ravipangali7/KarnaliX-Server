@@ -19,6 +19,8 @@ from .models import (
     Testimonial,
     CMSPage,
     SiteSetting,
+    SignupOTP,
+    SignupSession,
 )
 
 UserModel = get_user_model()
@@ -115,9 +117,27 @@ class SuperSettingAdmin(SingletonAdminMixin, admin.ModelAdmin):
         'min_deposit',
         'max_deposit',
         'exposure_limit',
+        'default_master',
         'updated_at',
     )
     readonly_fields = ('created_at', 'updated_at')
+    autocomplete_fields = ('default_master',)
+
+
+@admin.register(SignupOTP)
+class SignupOTPAdmin(admin.ModelAdmin):
+    list_display = ('phone', 'otp', 'expires_at', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('phone',)
+    readonly_fields = ('phone', 'otp', 'expires_at', 'created_at')
+
+
+@admin.register(SignupSession)
+class SignupSessionAdmin(admin.ModelAdmin):
+    list_display = ('phone', 'token', 'expires_at', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('phone', 'token')
+    readonly_fields = ('phone', 'token', 'expires_at', 'created_at')
 
 
 @admin.register(PaymentMode)

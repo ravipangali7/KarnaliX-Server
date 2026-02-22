@@ -31,12 +31,11 @@ class LoginSerializer(serializers.Serializer):
 
 
 class RegisterSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    """Phone-first signup: requires signup_token (from verify-otp), phone, name, password."""
+    signup_token = serializers.CharField()
+    phone = serializers.CharField()
+    name = serializers.CharField()
     password = serializers.CharField(write_only=True, min_length=6)
-    name = serializers.CharField(required=False, allow_blank=True)
-    phone = serializers.CharField(required=False, allow_blank=True)
-    email = serializers.EmailField(required=False, allow_blank=True)
-    whatsapp_number = serializers.CharField(required=False, allow_blank=True)
     referral_code = serializers.CharField(required=False, allow_blank=True)
 
 

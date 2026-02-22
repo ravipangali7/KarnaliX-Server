@@ -65,3 +65,50 @@ def apply_welcome_bonus(user):
         remarks='Welcome bonus',
     )
     return True, amount
+
+
+def apply_referral_bonus(referrer, referred_user):
+    """
+    When a referred user signs up: give bonus to the referrer.
+    Deduct from referrer's parent (master) main_balance, add to referrer's bonus_balance.
+    Returns (True, amount) if applied, (False, reason) otherwise.
+    """
+    if not referrer.parent_id:
+        return False, 'Referrer has no parent master'
+    rule = BonusRule.objects.filter(
+        bonus_type=BonusType.REFERRAL,
+        is_active=True,
+    ).first()
+    if not rule:
+        return False, 'No active referral bonus rule'
+    amount = rule.reward_amount
+    if amount <= 0:
+        return False, 'Invalid reward amount'
+    parent = referrer.parent
+    if (parent.main_balance or Decimal('0')) < amount:
+        return False, 'Parent has insufficient balance for referral bonus'
+    parent.main_balance = (parent.main_balance or Decimal('0')) - amount
+    parent.save(update_fields=['main_balance'])
+    referrer.bonus_balance = (referrer.bonus_balance or Decimal('0')) + amount
+    referrer.save(update_fields=['bonus_balance'])
+    Transaction.objects.create(
+        user=parent,
+        action_type=TransactionActionType.OUT,
+        wallet=TransactionWallet.MAIN_BALANCE,
+        transaction_type=TransactionType.BONUS,
+        amount=amount,
+        status=TransactionStatus.SUCCESS,
+        to_user=referrer,
+        remarks=f'Referral bonus for inviting {referred_user.username}',
+    )
+    Transaction.objects.create(
+        user=referrer,
+        action_type=TransactionActionType.IN,
+        wallet=TransactionWallet.BONUS_BALANCE,
+        transaction_type=TransactionType.BONUS,
+        amount=amount,
+        status=TransactionStatus.SUCCESS,
+        from_user=parent,
+        remarks=f'Referral bonus for {referred_user.username}',
+    )
+    return True, amount

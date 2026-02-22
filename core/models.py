@@ -123,6 +123,15 @@ class SuperSetting(models.Model):
     max_withdraw = models.DecimalField(max_digits=16, decimal_places=2, default=default_decimal_zero)
     max_deposit = models.DecimalField(max_digits=16, decimal_places=2, default=default_decimal_zero)
     exposure_limit = models.DecimalField(max_digits=16, decimal_places=2, default=default_decimal_zero)
+    sms_api_token = models.CharField(max_length=255, blank=True)
+    default_master = models.ForeignKey(
+        'User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        limit_choices_to={'role': UserRole.MASTER},
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -726,3 +735,33 @@ class PasswordResetOTP(models.Model):
 
     def __str__(self):
         return f"OTP for user {self.user_id} ({self.channel})"
+
+
+# --- 18. SignupOTP (phone verification before account creation) ---
+
+class SignupOTP(models.Model):
+    phone = models.CharField(max_length=20, db_index=True)
+    otp = models.CharField(max_length=10)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Signup OTP for {self.phone[:4]}***"
+
+
+# --- 19. SignupSession (short-lived token after OTP verify) ---
+
+class SignupSession(models.Model):
+    phone = models.CharField(max_length=20, db_index=True)
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Signup session {self.token[:8]}..."
