@@ -52,7 +52,7 @@ def _launch_game_common(request):
             user_id=user_id,
             wallet_amount=wallet_amount,
             # game_uid=game_uid,
-            game_uid='f743cb55c2c4b737727ef144413937f4',
+            game_uid='92b24e4c25107367a80e0fe1a97c24e4',
             domain_url=domain_url,
             allow_redirects=False,
         )
