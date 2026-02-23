@@ -87,6 +87,7 @@ urlpatterns = [
     path('testimonials/<int:pk>/', testimonial_views.testimonial_detail),
     path('messages/', message_views.message_list),
     path('messages/contacts/', message_views.message_contacts),
+    path('messages/unread-count/', message_views.message_unread_count),
     path('messages/send/', message_views.message_create),
     path('payment-mode-verification/', payment_mode_verification_views.payment_mode_verification_list),
     path('payment-mode-verification/<int:pk>/approve/', payment_mode_verification_views.payment_mode_approve),

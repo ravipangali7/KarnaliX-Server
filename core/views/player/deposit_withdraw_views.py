@@ -3,8 +3,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from core.permissions import require_role
-from core.models import Deposit, Withdraw, PaymentMode, UserRole
+from core.models import Deposit, Withdraw, PaymentMode, UserRole, ActivityAction
 from core.serializers import DepositSerializer, DepositCreateSerializer, WithdrawSerializer, WithdrawCreateSerializer
+from core.services.activity_log_service import create_activity_log
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -14,6 +15,8 @@ def deposit_request(request):
     ser = DepositCreateSerializer(data=request.data)
     ser.is_valid(raise_exception=True)
     dep = Deposit.objects.create(user=request.user, **ser.validated_data)
+    remarks = f"Amount: {getattr(dep, 'amount', '')}"
+    create_activity_log(request.user, ActivityAction.DEPOSIT_REQUEST, request=request, remarks=remarks)
     return Response(DepositSerializer(dep).data, status=status.HTTP_201_CREATED)
 
 @api_view(['POST'])
@@ -37,4 +40,6 @@ def withdraw_request(request):
         if payment_mode.user_id != request.user.id or payment_mode.status != 'approved':
             return Response({'detail': 'Selected payment method is invalid or not approved.'}, status=status.HTTP_400_BAD_REQUEST)
     wd = Withdraw.objects.create(user=request.user, **data)
+    remarks = f"Amount: {getattr(wd, 'amount', '')}"
+    create_activity_log(request.user, ActivityAction.WITHDRAW_REQUEST, request=request, remarks=remarks)
     return Response(WithdrawSerializer(wd).data, status=status.HTTP_201_CREATED)

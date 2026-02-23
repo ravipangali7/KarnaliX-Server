@@ -635,6 +635,7 @@ class Message(models.Model):
     message = models.TextField()
     file = models.FileField(upload_to='message_files/', blank=True, null=True)
     image = models.ImageField(upload_to='message_images/', blank=True, null=True)
+    is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

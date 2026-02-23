@@ -18,10 +18,21 @@ def message_list(request):
         try:
             pid = int(partner_id)
             qs = qs.filter(sender_id=pid) | qs.filter(receiver_id=pid)
+            Message.objects.filter(receiver=request.user, sender_id=pid, is_read=False).update(is_read=True)
         except (TypeError, ValueError):
             pass
     qs = qs.select_related('sender', 'receiver').order_by('created_at').distinct()[:200]
     return Response(MessageSerializer(qs, many=True).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def message_unread_count(request):
+    err = require_role(request, [UserRole.PLAYER])
+    if err: return err
+    count = Message.objects.filter(receiver=request.user, is_read=False).count()
+    return Response({'unread_count': count})
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

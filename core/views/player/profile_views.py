@@ -3,8 +3,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from core.permissions import require_role
-from core.models import UserRole
+from core.models import UserRole, ActivityAction
 from core.serializers import UserDetailSerializer
+from core.services.activity_log_service import create_activity_log
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -22,6 +23,7 @@ def profile_update(request):
     for f in ['name', 'phone', 'email', 'whatsapp_number']:
         if f in request.data: setattr(u, f, request.data[f])
     u.save()
+    create_activity_log(request.user, ActivityAction.PROFILE_UPDATE, request=request)
     return Response(UserDetailSerializer(u).data)
 
 @api_view(['POST'])
@@ -35,4 +37,5 @@ def change_password(request):
     if not request.user.check_password(old): return Response({'detail': 'Invalid password.'}, status=400)
     request.user.set_password(new)
     request.user.save()
+    create_activity_log(request.user, ActivityAction.PASSWORD_CHANGE, request=request)
     return Response({'detail': 'OK'})

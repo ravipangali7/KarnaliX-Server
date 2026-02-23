@@ -9,13 +9,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 
-from core.models import User, UserRole, SignupSession, SuperSetting
+from core.models import User, UserRole, SignupSession, SuperSetting, ActivityAction
 from core.serializers import (
     LoginSerializer,
     RegisterSerializer,
     MeSerializer,
 )
 from core.services.bonus_service import apply_welcome_bonus, apply_referral_bonus
+from core.services.activity_log_service import create_activity_log
 from core.views.public.signup_views import normalize_phone
 
 
@@ -48,6 +49,7 @@ def login(request):
             {'detail': 'User account is disabled.'},
             status=status.HTTP_403_FORBIDDEN,
         )
+    create_activity_log(user, ActivityAction.LOGIN, request=request)
     token, _ = Token.objects.get_or_create(user=user)
     serializer = MeSerializer(user)
     return Response({
