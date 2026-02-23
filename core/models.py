@@ -730,7 +730,8 @@ class SiteSetting(models.Model):
 class SliderSlide(models.Model):
     title = models.CharField(max_length=500)
     subtitle = models.CharField(max_length=500, blank=True)
-    image = models.CharField(max_length=1000, blank=True)  # URL or path
+    image = models.CharField(max_length=1000, blank=True)  # Legacy URL or path
+    image_file = models.ImageField(upload_to='slider/', blank=True, null=True)
     cta_label = models.CharField(max_length=100, default='Join Now')
     cta_link = models.CharField(max_length=500, default='/register')
     order = models.PositiveIntegerField(default=0)

@@ -15,8 +15,8 @@ def slider_list_create(request):
         return err
     if request.method == 'GET':
         qs = SliderSlide.objects.all()
-        return Response(SliderSlideSerializer(qs, many=True).data)
-    ser = SliderSlideSerializer(data=request.data)
+        return Response(SliderSlideSerializer(qs, many=True, context={'request': request}).data)
+    ser = SliderSlideSerializer(data=request.data, context={'request': request})
     ser.is_valid(raise_exception=True)
     ser.save()
     return Response(ser.data, status=status.HTTP_201_CREATED)
@@ -32,11 +32,11 @@ def slider_detail(request, pk):
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
     if request.method == 'GET':
-        return Response(SliderSlideSerializer(obj).data)
+        return Response(SliderSlideSerializer(obj, context={'request': request}).data)
     if request.method == 'DELETE':
         obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    ser = SliderSlideSerializer(obj, data=request.data, partial=(request.method == 'PATCH'))
+    ser = SliderSlideSerializer(obj, data=request.data, partial=(request.method == 'PATCH'), context={'request': request})
     ser.is_valid(raise_exception=True)
     ser.save()
     return Response(ser.data)

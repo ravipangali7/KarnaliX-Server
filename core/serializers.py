@@ -244,9 +244,22 @@ class SiteSettingSerializer(serializers.ModelSerializer):
 
 # --- SliderSlide ---
 class SliderSlideSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = SliderSlide
-        fields = '__all__'
+        fields = [
+            'id', 'title', 'subtitle', 'image', 'image_file',
+            'cta_label', 'cta_link', 'order', 'created_at', 'updated_at',
+        ]
+
+    def get_image(self, obj):
+        if obj.image_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image_file.url)
+            return obj.image_file.url
+        return (obj.image or '').strip() or None
 
 
 # --- LiveBetting ---

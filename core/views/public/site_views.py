@@ -55,7 +55,7 @@ def testimonials_list(request):
 def slider_list(request):
     """GET slider slides for second home (ordered)."""
     qs = SliderSlide.objects.all()
-    serializer = SliderSlideSerializer(qs, many=True)
+    serializer = SliderSlideSerializer(qs, many=True, context={'request': request})
     return Response(serializer.data)
 
 
