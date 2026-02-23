@@ -124,7 +124,8 @@ def build_launch_url(
     params = {
         "user_id": user_id,
         "wallet_amount": int(round(float(wallet_amount))),
-        "game_uid": game_uid,
+        "game_uid": "f743cb55c2c4b737727ef144413937f4",
+        # "game_uid": game_uid,
         "token": token,
         "timestamp": ts,
         "payload": payload_b64,
@@ -154,7 +155,7 @@ def launch_game(
         "user_id": user_id,
         "wallet_amount": float(wallet_amount),
         # "game_uid": game_uid,
-        "game_uid": '11e330c2b23f106815f3b726d04e4316',
+        "game_uid": 'f743cb55c2c4b737727ef144413937f4',
         "token": token,
         "timestamp": ts,
     }
