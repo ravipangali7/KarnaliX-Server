@@ -29,6 +29,7 @@ urlpatterns = [
     path('categories/', game_views.category_list),
     path('providers/', game_views.provider_list),
     path('games/', game_views.game_list),
+    path('coming-soon-games/', game_views.coming_soon_list),
     path('games/<int:pk>/', game_views.game_detail),
     # Bonus
     path('bonus-rules/', bonus_views.bonus_rules_list),

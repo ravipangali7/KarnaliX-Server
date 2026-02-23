@@ -229,9 +229,11 @@ class GameAdmin(admin.ModelAdmin):
         'min_bet',
         'max_bet',
         'is_active',
+        'is_coming_soon',
+        'coming_soon_launch_date',
         'created_at',
     )
-    list_filter = ('is_active', 'provider', 'category')
+    list_filter = ('is_active', 'is_coming_soon', 'provider', 'category')
     search_fields = ('name', 'game_uid')
     autocomplete_fields = ('provider', 'category')
 

@@ -12,6 +12,7 @@ from core.serializers import (
     GameProviderSerializer,
     GameListSerializer,
     GameDetailSerializer,
+    ComingSoonGameSerializer,
 )
 
 
@@ -82,6 +83,15 @@ def game_list(request):
         'previous': prev_url,
         'results': serializer.data,
     })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def coming_soon_list(request):
+    """GET games marked as coming soon (active + is_coming_soon=True)."""
+    qs = Game.objects.filter(is_active=True, is_coming_soon=True).select_related('category', 'provider').order_by('id')
+    serializer = ComingSoonGameSerializer(qs, many=True)
+    return Response(serializer.data)
 
 
 @api_view(['GET'])

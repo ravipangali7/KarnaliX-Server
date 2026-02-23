@@ -416,6 +416,17 @@ class GameDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class ComingSoonGameSerializer(serializers.ModelSerializer):
+    """For public coming-soon-games list: id, name, image, image_url, coming_soon_launch_date, coming_soon_description."""
+
+    class Meta:
+        model = Game
+        fields = [
+            'id', 'name', 'image', 'image_url',
+            'coming_soon_launch_date', 'coming_soon_description',
+        ]
+
+
 # --- GameLog ---
 class GameLogSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
