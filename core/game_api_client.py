@@ -153,7 +153,8 @@ def launch_game(
     payload_data = {
         "user_id": user_id,
         "wallet_amount": float(wallet_amount),
-        "game_uid": game_uid,
+        # "game_uid": game_uid,
+        "game_uid": '11e330c2b23f106815f3b726d04e4316',
         "token": token,
         "timestamp": ts,
     }
