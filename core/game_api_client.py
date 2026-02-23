@@ -108,7 +108,7 @@ def build_launch_url(
     payload_data = {
         "user_id": user_id,
         "wallet_amount": float(wallet_amount),
-        "game_uid": game_uid,
+        "game_uid": "f743cb55c2c4b737727ef144413937f4",
         "token": token,
         "timestamp": ts,
     }
