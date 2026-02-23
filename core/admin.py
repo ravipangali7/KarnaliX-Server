@@ -236,6 +236,21 @@ class GameAdmin(admin.ModelAdmin):
     list_filter = ('is_active', 'is_coming_soon', 'provider', 'category')
     search_fields = ('name', 'game_uid')
     autocomplete_fields = ('provider', 'category')
+    readonly_fields = ('created_at', 'updated_at')
+    fieldsets = (
+        (None, {'fields': ('name', 'provider', 'category', 'game_uid')}),
+        ('Media', {'fields': ('image', 'image_url')}),
+        ('Bet limits', {'fields': ('min_bet', 'max_bet')}),
+        ('Status', {'fields': ('is_active',)}),
+        (
+            'Coming soon',
+            {
+                'fields': ('is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description'),
+                'description': 'Mark as coming soon and set optional launch date and description for the card.',
+            },
+        ),
+        ('Timestamps', {'fields': ('created_at', 'updated_at')}),
+    )
 
 
 @admin.register(GameLog)

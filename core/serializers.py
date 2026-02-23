@@ -403,6 +403,7 @@ class GameListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'game_uid', 'image', 'image_url', 'min_bet', 'max_bet', 'is_active',
             'category', 'category_name', 'provider', 'provider_name', 'provider_code',
+            'is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description',
             'created_at',
         ]
 
