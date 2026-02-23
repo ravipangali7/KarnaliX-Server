@@ -11,6 +11,7 @@ from core.views.master import (
     payment_mode_views,
     payment_mode_verification_views,
     me_views,
+    accounting_views,
 )
 
 urlpatterns = [
@@ -34,6 +35,7 @@ urlpatterns = [
     path('game-log/', game_log_views.game_log_list),
     path('game-log/<int:pk>/', game_log_views.game_log_detail),
     path('transactions/', transaction_views.transaction_list),
+    path('accounting-report/', accounting_views.accounting_report),
     path('activity/', activity_views.activity_list),
     path('messages/', message_views.message_list),
     path('messages/contacts/', message_views.message_contacts),
