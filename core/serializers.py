@@ -14,6 +14,7 @@ from .models import (
     PaymentMode,
     Deposit,
     Withdraw,
+    BonusRequest,
     BonusRule,
     GameProvider,
     GameCategory,
@@ -379,6 +380,27 @@ class WithdrawCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Withdraw
         fields = ['amount', 'payment_mode', 'screenshot', 'remarks']
+
+
+# --- BonusRequest ---
+class BonusRequestSerializer(serializers.ModelSerializer):
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    bonus_type_display = serializers.CharField(source='get_bonus_type_display', read_only=True)
+    bonus_rule_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BonusRequest
+        fields = '__all__'
+
+    def get_bonus_rule_name(self, obj):
+        return obj.bonus_rule.name if obj.bonus_rule else None
+
+
+class BonusRequestCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BonusRequest
+        fields = ['amount', 'bonus_type', 'bonus_rule', 'remarks']
 
 
 # --- BonusRule ---

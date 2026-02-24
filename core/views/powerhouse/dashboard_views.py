@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core.permissions import require_role
-from core.models import User, UserRole, Deposit, Withdraw
+from core.models import User, UserRole, Deposit, Withdraw, BonusRequest
 
 
 @api_view(['GET'])
@@ -15,6 +15,7 @@ def dashboard(request):
         return err
     pending_deposits = Deposit.objects.filter(status='pending').count()
     pending_withdrawals = Withdraw.objects.filter(status='pending').count()
+    pending_bonus_requests = BonusRequest.objects.filter(status='pending').count()
     players = User.objects.filter(role=UserRole.PLAYER).count()
     masters = User.objects.filter(role=UserRole.MASTER).count()
     supers = User.objects.filter(role=UserRole.SUPER).count()
@@ -24,6 +25,7 @@ def dashboard(request):
     return Response({
         'pending_deposits': pending_deposits,
         'pending_withdrawals': pending_withdrawals,
+        'pending_bonus_requests': pending_bonus_requests,
         'total_players': players,
         'total_masters': masters,
         'total_supers': supers,

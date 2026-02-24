@@ -3,8 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from core.permissions import require_role
-from core.models import UserRole, Deposit, Withdraw, Transaction, GameLog, PaymentMode
-from core.serializers import DepositSerializer, WithdrawSerializer, TransactionSerializer, GameLogSerializer, PaymentModeSerializer
+from core.models import UserRole, Deposit, Withdraw, BonusRequest, Transaction, GameLog, PaymentMode
+from core.serializers import DepositSerializer, WithdrawSerializer, BonusRequestSerializer, TransactionSerializer, GameLogSerializer, PaymentModeSerializer
 
 
 def _get_related_transaction(game_log):
@@ -28,6 +28,7 @@ def wallet(request):
         'bonus_balance': str(u.bonus_balance or 0),
         'deposits': DepositSerializer(Deposit.objects.filter(user=u).select_related('payment_mode').order_by('-created_at')[:50], many=True, context=ctx).data,
         'withdrawals': WithdrawSerializer(Withdraw.objects.filter(user=u).select_related('payment_mode').order_by('-created_at')[:50], many=True, context=ctx).data,
+        'bonus_requests': BonusRequestSerializer(BonusRequest.objects.filter(user=u).select_related('bonus_rule').order_by('-created_at')[:50], many=True, context=ctx).data,
     })
 
 @api_view(['GET'])

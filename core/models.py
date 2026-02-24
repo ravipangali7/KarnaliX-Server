@@ -379,6 +379,53 @@ class Withdraw(models.Model):
         return f"Withdraw #{self.pk} - {self.user} - {self.amount} ({self.status})"
 
 
+# --- BonusRequest ---
+
+class BonusRequest(models.Model):
+    """
+    Bonus claim request. On approval: parent's main_balance deducted, user's bonus_balance
+    added. Same dual-transaction pattern as deposit approval for bonus.
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='bonus_requests'
+    )
+    amount = models.DecimalField(max_digits=16, decimal_places=2)
+    bonus_type = models.CharField(max_length=20, choices=BonusType.choices)
+    bonus_rule = models.ForeignKey(
+        'BonusRule',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bonus_requests'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=RequestStatus.choices,
+        default=RequestStatus.PENDING
+    )
+    reject_reason = models.TextField(blank=True)
+    processed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bonus_requests_processed'
+    )
+    processed_at = models.DateTimeField(null=True, blank=True)
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Bonus Request'
+        verbose_name_plural = 'Bonus Requests'
+
+    def __str__(self):
+        return f"BonusRequest #{self.pk} - {self.user} - {self.amount} ({self.bonus_type}) ({self.status})"
+
+
 # --- 6. BonusRule ---
 
 class BonusRule(models.Model):
