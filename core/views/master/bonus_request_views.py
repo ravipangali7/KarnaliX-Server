@@ -1,3 +1,4 @@
+from decimal import Decimal, InvalidOperation
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -31,7 +32,7 @@ def bonus_request_list(request):
     return Response(BonusRequestSerializer(qs, many=True, context={'request': request}).data)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def bonus_request_detail(request, pk):
     err = require_role(request, [UserRole.MASTER])
@@ -40,6 +41,21 @@ def bonus_request_detail(request, pk):
     obj = BonusRequest.objects.filter(pk=pk, user__parent=request.user).select_related('user', 'bonus_rule', 'processed_by').first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    if request.method == 'PATCH':
+        if obj.status != 'pending':
+            return Response({'detail': 'Only pending bonus requests can be edited.'}, status=status.HTTP_400_BAD_REQUEST)
+        amount_raw = request.data.get('amount')
+        if amount_raw is None:
+            return Response({'detail': 'amount is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            amount = Decimal(str(amount_raw))
+        except (InvalidOperation, TypeError, ValueError):
+            return Response({'detail': 'Invalid amount.'}, status=status.HTTP_400_BAD_REQUEST)
+        if amount <= 0:
+            return Response({'detail': 'Amount must be positive.'}, status=status.HTTP_400_BAD_REQUEST)
+        obj.amount = amount
+        obj.save(update_fields=['amount'])
+        return Response(BonusRequestSerializer(obj, context={'request': request}).data)
     return Response(BonusRequestSerializer(obj, context={'request': request}).data)
 
 
