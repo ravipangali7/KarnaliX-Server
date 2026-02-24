@@ -129,7 +129,9 @@ def build_launch_url(
         "timestamp": ts,
         "payload": payload_b64,
     }
-    return url + "?" + urlencode(params)
+    temp = url + "?" + urlencode(params)
+    print(f"CHEKC IT {temp}")
+    return temp
 
 
 def launch_game(
