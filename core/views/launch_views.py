@@ -51,8 +51,7 @@ def _launch_game_common(request):
             token=settings.game_api_token,
             user_id=user_id,
             wallet_amount=wallet_amount,
-            # game_uid=game_uid,
-            game_uid='188e43c0545c6690800d12de5018b17f',
+            game_uid=game_uid,
             domain_url=domain_url,
             allow_redirects=False,
         )

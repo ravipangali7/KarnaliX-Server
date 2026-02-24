@@ -108,7 +108,7 @@ def build_launch_url(
     payload_data = {
         "user_id": user_id,
         "wallet_amount": float(wallet_amount),
-        "game_uid": "188e43c0545c6690800d12de5018b17f",
+        "game_uid": game_uid,
         "token": token,
         "timestamp": ts,
     }
@@ -124,8 +124,7 @@ def build_launch_url(
     params = {
         "user_id": user_id,
         "wallet_amount": int(round(float(wallet_amount))),
-        "game_uid": "188e43c0545c6690800d12de5018b17f",
-        # "game_uid": game_uid,
+        "game_uid": game_uid,
         "token": token,
         "timestamp": ts,
         "payload": payload_b64,
@@ -154,8 +153,7 @@ def launch_game(
     payload_data = {
         "user_id": user_id,
         "wallet_amount": float(wallet_amount),
-        # "game_uid": game_uid,
-        "game_uid": '188e43c0545c6690800d12de5018b17f',
+        "game_uid": game_uid,
         "token": token,
         "timestamp": ts,
     }
@@ -169,7 +167,7 @@ def launch_game(
     params = {
         "user_id": user_id,
         "wallet_amount": int(round(float(wallet_amount))),
-        "game_uid": '188e43c0545c6690800d12de5018b17f',
+        "game_uid": game_uid,
         "token": token,
         "timestamp": ts,
         "payload": payload_b64,
