@@ -393,9 +393,20 @@ class BonusRuleSerializer(serializers.ModelSerializer):
 
 # --- GameProvider ---
 class GameProviderSerializer(serializers.ModelSerializer):
+    single_game_id = serializers.SerializerMethodField()
+
     class Meta:
         model = GameProvider
-        fields = '__all__'
+        fields = [
+            'id', 'name', 'code', 'image', 'banner', 'api_endpoint', 'api_secret', 'api_token',
+            'is_active', 'created_at', 'updated_at', 'single_game_id',
+        ]
+
+    def get_single_game_id(self, obj):
+        qs = Game.objects.filter(provider=obj, is_active=True, is_single_game=True)
+        if qs.count() == 1:
+            return qs.values_list('id', flat=True).first()
+        return None
 
 
 # --- GameCategory ---
@@ -417,7 +428,7 @@ class GameListSerializer(serializers.ModelSerializer):
             'id', 'name', 'game_uid', 'image', 'image_url', 'min_bet', 'max_bet', 'is_active',
             'category', 'category_name', 'provider', 'provider_name', 'provider_code',
             'is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description',
-            'created_at',
+            'is_single_game', 'created_at',
         ]
 
 
