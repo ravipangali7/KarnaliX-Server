@@ -34,6 +34,28 @@ def provider_list(request):
     return Response(serializer.data)
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def provider_detail(request, pk):
+    """GET single provider by id (active only). Returns provider data, games_count, and categories with games."""
+    obj = GameProvider.objects.filter(pk=pk, is_active=True).first()
+    if not obj:
+        return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    provider_data = GameProviderSerializer(obj).data
+    games_count = Game.objects.filter(provider_id=pk, is_active=True).count()
+    categories_qs = (
+        Game.objects.filter(provider_id=pk, is_active=True)
+        .values_list('category_id', 'category__name')
+        .distinct()
+    )
+    categories = [{'id': cid, 'name': cname or ''} for cid, cname in categories_qs]
+    return Response({
+        **provider_data,
+        'games_count': games_count,
+        'categories': categories,
+    })
+
+
 def _paginate_queryset(qs, request, page_size=24):
     """Paginate queryset; return (page_queryset, count, next_page, prev_page)."""
     try:

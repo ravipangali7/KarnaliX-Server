@@ -408,6 +408,7 @@ class GameProvider(models.Model):
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=100)
     image = models.ImageField(upload_to='providers/', blank=True, null=True)
+    banner = models.ImageField(upload_to='providers/banners/', blank=True, null=True)
     api_endpoint = models.URLField(blank=True)
     api_secret = models.CharField(max_length=255, blank=True)
     api_token = models.CharField(max_length=255, blank=True)

@@ -28,6 +28,7 @@ urlpatterns = [
     # Games
     path('categories/', game_views.category_list),
     path('providers/', game_views.provider_list),
+    path('providers/<int:pk>/', game_views.provider_detail),
     path('games/', game_views.game_list),
     path('coming-soon-games/', game_views.coming_soon_list),
     path('games/<int:pk>/', game_views.game_detail),
