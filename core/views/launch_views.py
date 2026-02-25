@@ -130,18 +130,18 @@ def launch_game_by_id(request, game_id):
     launch_base = _normalize_launch_base(launch_base)
 
     api_secret = (provider.api_secret or "").strip()
-    if not api_secret and super_settings:
-        api_secret = (super_settings.game_api_secret or "").strip()
     if not api_secret:
-        api_secret = getattr(django_settings, "GAME_PROVIDER_API_SECRET", None) or ""
-    if not api_secret:
-        return Response({"error": "Provider API secret not configured"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": "Provider API secret is not set. Configure it in the provider form."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     api_token = (provider.api_token or "").strip()
-    if not api_token and super_settings:
-        api_token = (super_settings.game_api_token or "").strip()
     if not api_token:
-        api_token = str(request.user.pk)
+        return Response(
+            {"error": "Provider API token is not set. Configure it in the provider form."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     domain_url = None
     if super_settings and (super_settings.game_api_domain_url or "").strip():
