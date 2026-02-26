@@ -2,11 +2,11 @@
 Public games: GameCategory list, GameProvider list, Game list and detail (by category filter).
 """
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from core.models import GameCategory, GameProvider, Game
+from core.models import GameCategory, GameProvider, Game, ComingSoonEnrollment
 from core.serializers import (
     GameCategorySerializer,
     GameProviderSerializer,
@@ -114,6 +114,28 @@ def coming_soon_list(request):
     qs = Game.objects.filter(is_active=True, is_coming_soon=True).select_related('category', 'provider').order_by('id')
     serializer = ComingSoonGameSerializer(qs, many=True)
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def coming_soon_enroll(request):
+    """POST: enroll current user for a coming-soon game (game_id in body). Idempotent."""
+    game_id = request.data.get('game_id')
+    if game_id is None:
+        return Response({'detail': 'game_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        game_id = int(game_id)
+    except (TypeError, ValueError):
+        return Response({'detail': 'Invalid game_id.'}, status=status.HTTP_400_BAD_REQUEST)
+    game = Game.objects.filter(pk=game_id, is_active=True, is_coming_soon=True).first()
+    if not game:
+        return Response({'detail': 'Game not found or not coming soon.'}, status=status.HTTP_404_NOT_FOUND)
+    _, created = ComingSoonEnrollment.objects.get_or_create(
+        game=game,
+        user=request.user,
+        defaults={},
+    )
+    return Response({'detail': 'Enrolled.' if created else 'Already enrolled.', 'enrolled': created}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])

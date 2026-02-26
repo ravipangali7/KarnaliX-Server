@@ -523,6 +523,24 @@ class Game(models.Model):
         return f"{self.name} ({self.provider.code})"
 
 
+# --- 9b. ComingSoonEnrollment (user notify for coming-soon game) ---
+
+class ComingSoonEnrollment(models.Model):
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='coming_soon_enrollments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='coming_soon_enrollments')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Coming Soon Enrollment'
+        verbose_name_plural = 'Coming Soon Enrollments'
+        constraints = [
+            models.UniqueConstraint(fields=['game', 'user'], name='unique_coming_soon_enrollment'),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} → {self.game.name}"
+
+
 # --- 10. GameLog ---
 
 class GameLog(models.Model):
@@ -794,6 +812,29 @@ class SliderSlide(models.Model):
 
     def __str__(self):
         return self.title[:50] or f"Slide {self.pk}"
+
+
+# --- 16b2. Popup (site popups / modals) ---
+
+class Popup(models.Model):
+    title = models.CharField(max_length=500)
+    content = models.TextField(blank=True)
+    image = models.CharField(max_length=1000, blank=True)
+    image_file = models.ImageField(upload_to='popup/', blank=True, null=True)
+    cta_label = models.CharField(max_length=100, default='OK')
+    cta_link = models.CharField(max_length=500, default='#')
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name = 'Popup'
+        verbose_name_plural = 'Popups'
+
+    def __str__(self):
+        return self.title[:50] or f"Popup {self.pk}"
 
 
 # --- 16c. LiveBettingSection (second home live betting block) ---

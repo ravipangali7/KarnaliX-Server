@@ -9,6 +9,7 @@ from .models import (
     SuperSetting,
     SiteSetting,
     SliderSlide,
+    Popup,
     LiveBettingSection,
     LiveBettingEvent,
     PaymentMode,
@@ -19,6 +20,7 @@ from .models import (
     GameProvider,
     GameCategory,
     Game,
+    ComingSoonEnrollment,
     GameLog,
     Transaction,
     ActivityLog,
@@ -263,6 +265,26 @@ class SliderSlideSerializer(serializers.ModelSerializer):
         return (obj.image or '').strip() or None
 
 
+# --- Popup ---
+class PopupSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Popup
+        fields = [
+            'id', 'title', 'content', 'image', 'image_file',
+            'cta_label', 'cta_link', 'is_active', 'order', 'created_at', 'updated_at',
+        ]
+
+    def get_image(self, obj):
+        if obj.image_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image_file.url)
+            return obj.image_file.url
+        return (obj.image or '').strip() or None
+
+
 # --- LiveBetting ---
 class LiveBettingEventSerializer(serializers.ModelSerializer):
     class Meta:
@@ -472,6 +494,16 @@ class ComingSoonGameSerializer(serializers.ModelSerializer):
             'id', 'name', 'image', 'image_url',
             'coming_soon_launch_date', 'coming_soon_description',
         ]
+
+
+# --- ComingSoonEnrollment ---
+class ComingSoonEnrollmentSerializer(serializers.ModelSerializer):
+    game_name = serializers.CharField(source='game.name', read_only=True)
+    user_username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = ComingSoonEnrollment
+        fields = ['id', 'game', 'game_name', 'user', 'user_username', 'created_at']
 
 
 # --- GameLog ---

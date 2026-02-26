@@ -31,6 +31,7 @@ urlpatterns = [
     path('providers/<int:pk>/', game_views.provider_detail),
     path('games/', game_views.game_list),
     path('coming-soon-games/', game_views.coming_soon_list),
+    path('coming-soon-enroll/', game_views.coming_soon_enroll),
     path('games/<int:pk>/', game_views.game_detail),
     # Bonus
     path('bonus-rules/', bonus_views.bonus_rules_list),

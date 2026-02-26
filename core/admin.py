@@ -20,6 +20,7 @@ from .models import (
     CMSPage,
     SiteSetting,
     SliderSlide,
+    Popup,
     LiveBettingSection,
     LiveBettingEvent,
     SignupOTP,
@@ -368,6 +369,13 @@ class SiteSettingAdmin(SingletonAdminMixin, admin.ModelAdmin):
 class SliderSlideAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'order', 'updated_at')
     list_editable = ('order',)
+    ordering = ('order', 'id')
+
+
+@admin.register(Popup)
+class PopupAdmin(admin.ModelAdmin):
+    list_display = ('id', 'title', 'is_active', 'order', 'updated_at')
+    list_editable = ('is_active', 'order')
     ordering = ('order', 'id')
 
 
