@@ -317,6 +317,9 @@ def player_report(request, pk):
         return err
     qs = get_players_queryset(request.user)
     player = qs.filter(pk=pk).first()
+    # Powerhouse: if not in players queryset (e.g. user is not role=Player), still allow viewing by pk
+    if not player and request.user.role == UserRole.POWERHOUSE:
+        player = User.objects.filter(pk=pk).first()
     if not player:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
     date_from = request.query_params.get('date_from', '').strip()
