@@ -28,6 +28,45 @@ def _parse_promo_banners(value):
         return []
 
 
+def _parse_json_field(value, default=None):
+    if default is None:
+        default = []
+    if value is None or value == '':
+        return default
+    if isinstance(value, list):
+        return value
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _parse_positive_int(value):
+    if value is None or value == '':
+        return None
+    try:
+        n = int(value)
+        return n if n >= 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_decimal(value):
+    if value is None or value == '':
+        return None
+    try:
+        from decimal import Decimal
+        return Decimal(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _decimal_or_zero(value):
+    from decimal import Decimal
+    parsed = _parse_decimal(value)
+    return parsed if parsed is not None else Decimal('0')
+
+
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def site_setting_update(request):
@@ -48,6 +87,12 @@ def site_setting_update(request):
             'hero_subtitle': request.data.get('hero_subtitle') or '',
             'footer_description': request.data.get('footer_description') or '',
             'promo_banners': _parse_promo_banners(request.data.get('promo_banners')),
+            'active_players': _parse_positive_int(request.data.get('active_players')) or 0,
+            'games_available': _parse_positive_int(request.data.get('games_available')) or 0,
+            'total_winnings': _decimal_or_zero(request.data.get('total_winnings')),
+            'instant_payouts': _parse_positive_int(request.data.get('instant_payouts')) or 0,
+            'home_stats': _parse_json_field(request.data.get('home_stats'), []),
+            'biggest_wins': _parse_json_field(request.data.get('biggest_wins'), []),
         }
         if request.FILES.get('logo'):
             data['logo'] = request.FILES.get('logo')
