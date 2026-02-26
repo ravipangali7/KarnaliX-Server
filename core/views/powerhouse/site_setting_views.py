@@ -37,8 +37,8 @@ def site_setting_update(request):
     obj = SiteSetting.objects.first() or SiteSetting()
     data = request.data
 
-    # Accept multipart/form-data for logo file upload
-    if request.FILES.get('logo'):
+    # Accept multipart/form-data for logo and favicon file upload
+    if request.FILES.get('logo') or request.FILES.get('favicon'):
         data = {
             'name': request.data.get('name') or '',
             'phones': [x for x in [request.data.get('phone1'), request.data.get('phone2')] if x],
@@ -48,8 +48,11 @@ def site_setting_update(request):
             'hero_subtitle': request.data.get('hero_subtitle') or '',
             'footer_description': request.data.get('footer_description') or '',
             'promo_banners': _parse_promo_banners(request.data.get('promo_banners')),
-            'logo': request.FILES.get('logo'),
         }
+        if request.FILES.get('logo'):
+            data['logo'] = request.FILES.get('logo')
+        if request.FILES.get('favicon'):
+            data['favicon'] = request.FILES.get('favicon')
 
     ser = SiteSettingSerializer(obj, data=data, partial=(request.method == 'PATCH'))
     ser.is_valid(raise_exception=True)

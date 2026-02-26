@@ -764,6 +764,7 @@ class CMSPage(models.Model):
 class SiteSetting(models.Model):
     name = models.CharField(max_length=255, blank=True)
     logo = models.ImageField(upload_to='site/', blank=True, null=True)
+    favicon = models.ImageField(upload_to='site/', blank=True, null=True)
     phones = models.JSONField(default=list, blank=True)
     emails = models.JSONField(default=list, blank=True)
     whatsapp_number = models.CharField(max_length=50, blank=True)
