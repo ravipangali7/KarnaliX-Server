@@ -1,6 +1,7 @@
 """
 Public games: GameCategory list, GameProvider list, Game list and detail (by category filter).
 """
+from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -78,7 +79,7 @@ def _paginate_queryset(qs, request, page_size=24):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def game_list(request):
-    """GET games (active). Optional query: category_id, provider_id, page, page_size."""
+    """GET games (active). Optional query: category_id, provider_id, search, page, page_size."""
     qs = Game.objects.filter(is_active=True).select_related('category', 'provider').order_by('id')
     category_id = request.query_params.get('category_id') or request.query_params.get('category')
     if category_id:
@@ -86,6 +87,14 @@ def game_list(request):
     provider_id = request.query_params.get('provider_id') or request.query_params.get('provider')
     if provider_id:
         qs = qs.filter(provider_id=provider_id)
+    search = (request.query_params.get('search') or '').strip()
+    if search:
+        qs = qs.filter(
+            Q(name__icontains=search)
+            | Q(game_uid__icontains=search)
+            | Q(provider__name__icontains=search)
+            | Q(provider__code__icontains=search)
+        )
     page_qs, count, next_page, previous_page = _paginate_queryset(qs, request, page_size=24)
     serializer = GameListSerializer(page_qs, many=True)
     base = request.build_absolute_uri(request.path)
