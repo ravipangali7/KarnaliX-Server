@@ -179,3 +179,8 @@ SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'https://kingxclub.com')
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Allow larger file uploads (e.g. popup/slider images). Default is 2.5MB.
+# If you get 413 from the API, increase your reverse proxy limit too (e.g. nginx: client_max_body_size 10M;).
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024   # 10 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
