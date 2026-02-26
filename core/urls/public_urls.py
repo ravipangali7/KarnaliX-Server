@@ -21,6 +21,7 @@ urlpatterns = [
     # Site
     path('site-setting/', site_views.site_setting),
     path('slider/', site_views.slider_list),
+    path('popups/', site_views.popup_list),
     path('live-betting/', site_views.live_betting_list),
     path('cms/footer/', site_views.cms_pages_footer),
     path('cms/<slug:slug>/', site_views.cms_page_by_slug),

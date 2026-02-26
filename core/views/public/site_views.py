@@ -6,8 +6,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
-from core.models import SiteSetting, CMSPage, Testimonial, SliderSlide, LiveBettingSection
-from core.serializers import SiteSettingSerializer, CMSPageSerializer, TestimonialSerializer, SliderSlideSerializer, LiveBettingSectionSerializer
+from core.models import SiteSetting, CMSPage, Testimonial, SliderSlide, LiveBettingSection, Popup
+from core.serializers import SiteSettingSerializer, CMSPageSerializer, TestimonialSerializer, SliderSlideSerializer, LiveBettingSectionSerializer, PopupSerializer
 
 
 @api_view(['GET'])
@@ -65,4 +65,13 @@ def live_betting_list(request):
     """GET live betting sections with events for second home."""
     qs = LiveBettingSection.objects.prefetch_related('events').all()
     serializer = LiveBettingSectionSerializer(qs, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def popup_list(request):
+    """GET active popups for home page (is_active=True, ordered by order)."""
+    qs = Popup.objects.filter(is_active=True).order_by('order', 'id')
+    serializer = PopupSerializer(qs, many=True, context={'request': request})
     return Response(serializer.data)
