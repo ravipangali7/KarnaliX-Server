@@ -505,6 +505,12 @@ class GameSubCategory(models.Model):
     class Meta:
         verbose_name = 'Game Sub Category'
         verbose_name_plural = 'Game Sub Categories'
+        constraints = [
+            models.UniqueConstraint(
+                fields=["game_category", "name"],
+                name="unique_gamesubcategory_per_category",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.game_category.name})"

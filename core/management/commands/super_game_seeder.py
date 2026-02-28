@@ -900,6 +900,8 @@ class Command(BaseCommand):
         images_set = 0
 
         def get_subcat(top_cat_name: str, subcat_name: str) -> GameSubCategory:
+            # Normalize to avoid duplicate subcategories (e.g. "Sports Betting" vs " Sports Betting")
+            subcat_name = (subcat_name or "Other").strip()[:255] or "Other"
             key = (top_cat_name, subcat_name)
             if key in subcat_cache:
                 return subcat_cache[key]
@@ -969,10 +971,16 @@ class Command(BaseCommand):
                 created_games += 1
             else:
                 skipped_games += 1
-                # Assign subcategory if missing
-                if game.subcategory is None:
+                # Always keep category and subcategory in sync (fix existing games that had none)
+                update_fields = []
+                if game.category_id != top_cat.id:
+                    game.category = top_cat
+                    update_fields.append("category")
+                if game.subcategory_id != subcat.id:
                     game.subcategory = subcat
-                    game.save(update_fields=["subcategory"])
+                    update_fields.append("subcategory")
+                if update_fields:
+                    game.save(update_fields=update_fields)
 
             if was_created or not game.image:
                 img_path = get_image(provider_code, game_name, game_uid)
