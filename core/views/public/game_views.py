@@ -80,7 +80,19 @@ def _paginate_queryset(qs, request, page_size=24):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def game_list(request):
-    """GET games (active). Optional query: category_id, provider_id, search, page, page_size."""
+    """GET games (active). Optional query: category_id, provider_id, search, page, page_size, ids."""
+    # If specific IDs are requested, return only those in the given order (no pagination).
+    ids_param = request.query_params.get('ids')
+    if ids_param:
+        id_list = [int(i) for i in ids_param.split(',') if i.strip().isdigit()]
+        games_by_id = {
+            g.id: g
+            for g in Game.objects.filter(is_active=True, id__in=id_list).select_related('category', 'provider')
+        }
+        ordered = [games_by_id[i] for i in id_list if i in games_by_id]
+        serializer = GameListSerializer(ordered, many=True)
+        return Response({'count': len(ordered), 'next': None, 'previous': None, 'results': serializer.data})
+
     qs = Game.objects.filter(is_active=True).select_related('category', 'provider').order_by('id')
     category_id = request.query_params.get('category_id') or request.query_params.get('category')
     if category_id:
