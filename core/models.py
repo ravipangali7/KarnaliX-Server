@@ -523,6 +523,13 @@ class Game(models.Model):
         on_delete=models.CASCADE,
         related_name='games'
     )
+    subcategory = models.ForeignKey(
+        'GameSubCategory',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='games'
+    )
     name = models.CharField(max_length=255)
     game_uid = models.CharField(max_length=255)
     image = models.ImageField(upload_to='games/', blank=True, null=True)
