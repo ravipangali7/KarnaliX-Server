@@ -71,9 +71,24 @@ def live_betting_list(request):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def payment_methods_list(request):
-    """GET all active payment methods (public, for home page payments accepted section)."""
-    qs = PaymentMethod.objects.filter(is_active=True)
-    serializer = PaymentMethodSerializer(qs, many=True, context={'request': request})
+    """GET active payment methods filtered/ordered by site_payments_accepted_json.payment_method_ids when set."""
+    site = SiteSetting.objects.first()
+    payments_json = (site.site_payments_accepted_json or {}) if site else {}
+    payment_method_ids = payments_json.get('payment_method_ids') if isinstance(payments_json, dict) else None
+
+    if payment_method_ids and isinstance(payment_method_ids, list) and len(payment_method_ids) > 0:
+        # Fetch only the selected active methods and preserve the configured order
+        id_list = [int(i) for i in payment_method_ids if isinstance(i, (int, float)) or (isinstance(i, str) and i.isdigit())]
+        methods_by_id = {
+            m.id: m
+            for m in PaymentMethod.objects.filter(is_active=True, id__in=id_list)
+        }
+        ordered = [methods_by_id[i] for i in id_list if i in methods_by_id]
+        serializer = PaymentMethodSerializer(ordered, many=True, context={'request': request})
+    else:
+        qs = PaymentMethod.objects.filter(is_active=True)
+        serializer = PaymentMethodSerializer(qs, many=True, context={'request': request})
+
     return Response(serializer.data)
 
 
