@@ -654,8 +654,32 @@ def load_xlsx_no_header(path: Path, provider_code: str) -> list[GameRow]:
     return rows
 
 
-def load_all_xlsx(docs_games: Path) -> list[GameRow]:
-    rows: list[GameRow] = []
+def _find_file_case_insensitive(folder: Path, filename: str) -> Path:
+    """
+    Return the path for filename inside folder, even if the actual file on disk
+    uses different casing.  Falls back to the original (non-existing) path so
+    callers can still check .exists() normally.
+    """
+    target = folder / filename
+    if target.exists():
+        return target
+    # Scan directory entries with a case-insensitive comparison
+    lower = filename.lower()
+    try:
+        for entry in folder.iterdir():
+            if entry.name.lower() == lower:
+                return entry
+    except Exception:
+        pass
+    return target  # original path; callers will see .exists() == False
+
+
+def load_all_xlsx(docs_games: Path) -> list[tuple[str, str, list[GameRow], bool]]:
+    """
+    Returns a list of (filename, provider_code, rows, found) tuples so callers
+    can emit per-source logging.  found=True when the file was located on disk.
+    """
+    results: list[tuple[str, str, list[GameRow], bool]] = []
     # XLSX files with header row (col names in row 1)
     header_files = {
         "Evolution live.xlsx":    "evolution_live",
@@ -669,10 +693,14 @@ def load_all_xlsx(docs_games: Path) -> list[GameRow]:
         "Sexy Gaming.xlsx":  "sexy_gaming",
     }
     for filename, code in header_files.items():
-        rows.extend(load_xlsx_with_header(docs_games / filename, code))
+        path = _find_file_case_insensitive(docs_games, filename)
+        rows = load_xlsx_with_header(path, code)
+        results.append((filename, code, rows, path.exists()))
     for filename, code in no_header_files.items():
-        rows.extend(load_xlsx_no_header(docs_games / filename, code))
-    return rows
+        path = _find_file_case_insensitive(docs_games, filename)
+        rows = load_xlsx_no_header(path, code)
+        results.append((filename, code, rows, path.exists()))
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -733,11 +761,31 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"docs/games path not found: {docs_games}"))
 
         # ── Load all game rows ──────────────────────────────────────────
+        self.stdout.write("Loading game data sources:")
         all_rows: list[GameRow] = []
-        all_rows.extend(load_embedded())
-        all_rows.extend(load_spribe_txt(docs_games))
-        all_rows.extend(load_lucksports_txt(docs_games))
-        all_rows.extend(load_all_xlsx(docs_games))
+
+        embedded = load_embedded()
+        all_rows.extend(embedded)
+        ezugi_count = sum(1 for r in embedded if r[0] == "ezugi")
+        jili_count  = sum(1 for r in embedded if r[0] == "jili")
+        self.stdout.write(f"  [embedded]         ezugi={ezugi_count} games, jili={jili_count} games")
+
+        spribe_rows = load_spribe_txt(docs_games)
+        all_rows.extend(spribe_rows)
+        spribe_path = docs_games / "spribe.txt"
+        status = "OK" if spribe_path.exists() else "MISSING"
+        self.stdout.write(f"  [spribe.txt]       {len(spribe_rows)} games  [{status}]")
+
+        lucks_rows = load_lucksports_txt(docs_games)
+        all_rows.extend(lucks_rows)
+        lucks_path = docs_games / "lucksportsgaming.txt"
+        status = "OK" if lucks_path.exists() else "MISSING"
+        self.stdout.write(f"  [lucksportsgaming.txt] {len(lucks_rows)} games  [{status}]")
+
+        for filename, code, xlsx_rows, found in load_all_xlsx(docs_games):
+            all_rows.extend(xlsx_rows)
+            status = "OK" if found else "MISSING – place file in docs/games/"
+            self.stdout.write(f"  [{filename:<30}] {len(xlsx_rows):>3} games  [{status}]")
 
         if providers_filter:
             all_rows = [r for r in all_rows if r[0].lower() in providers_filter]
@@ -746,7 +794,13 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("No game rows found (check docs/games and filters)."))
             return
 
-        self.stdout.write(f"Loaded {len(all_rows)} game rows across {len({r[0] for r in all_rows})} providers.")
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Loaded {len(all_rows)} game rows across "
+                f"{len({r[0] for r in all_rows})} providers: "
+                f"{sorted({r[0] for r in all_rows})}"
+            )
+        )
 
         if dry_run:
             unique = {(r[0], r[2]) for r in all_rows}
