@@ -25,6 +25,7 @@ from .models import (
     LiveBettingEvent,
     SignupOTP,
     SignupSession,
+    PaymentMethod,
 )
 
 UserModel = get_user_model()
@@ -398,3 +399,11 @@ class LiveBettingEventAdmin(admin.ModelAdmin):
     list_display = ('id', 'section', 'team1', 'team2', 'event_date', 'event_time', 'is_live', 'order')
     list_filter = ('section', 'is_live')
     ordering = ('section', 'order', 'id')
+
+
+@admin.register(PaymentMethod)
+class PaymentMethodAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'is_active', 'order', 'updated_at')
+    list_editable = ('is_active', 'order')
+    ordering = ('order', 'id')
+    readonly_fields = ('created_at', 'updated_at')

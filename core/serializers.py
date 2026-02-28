@@ -27,6 +27,7 @@ from .models import (
     Message,
     Testimonial,
     CMSPage,
+    PaymentMethod,
 )
 
 
@@ -236,6 +237,23 @@ class SuperSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = SuperSetting
         fields = '__all__'
+
+
+# --- PaymentMethod ---
+class PaymentMethodSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = PaymentMethod
+        fields = ['id', 'name', 'image', 'image_url', 'fields', 'order', 'is_active', 'created_at', 'updated_at']
+
+    def get_image_url(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
 
 
 # --- SiteSetting ---

@@ -23,6 +23,7 @@ from core.views.powerhouse import (
     bonus_rule_views,
     payment_mode_verification_views,
     me_views,
+    payment_method_views,
 )
 
 urlpatterns = [
@@ -108,4 +109,6 @@ urlpatterns = [
     path('profile/', me_views.profile_get),
     path('profile/update/', me_views.profile_update),
     path('change-password/', me_views.change_password),
+    path('payment-methods/', payment_method_views.payment_method_list_create),
+    path('payment-methods/<int:pk>/', payment_method_views.payment_method_detail),
 ]

@@ -761,6 +761,26 @@ class CMSPage(models.Model):
         return self.title
 
 
+# --- 15b. PaymentMethod (site-level accepted payment methods) ---
+
+class PaymentMethod(models.Model):
+    name = models.CharField(max_length=255)
+    image = models.ImageField(upload_to='payments/', blank=True, null=True)
+    fields = models.JSONField(default=dict, blank=True)
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name = 'Payment Method'
+        verbose_name_plural = 'Payment Methods'
+
+    def __str__(self):
+        return self.name
+
+
 # --- 16. SiteSetting ---
 
 class SiteSetting(models.Model):
@@ -784,6 +804,17 @@ class SiteSetting(models.Model):
     home_stats = models.JSONField(default=list, blank=True)
     biggest_wins = models.JSONField(default=list, blank=True)
     promo_banners = models.JSONField(default=list, blank=True)
+    # Home page section JSON configs
+    site_categories_json = models.JSONField(default=dict, blank=True)
+    site_top_games_json = models.JSONField(default=dict, blank=True)
+    site_providers_json = models.JSONField(default=dict, blank=True)
+    site_categories_game_json = models.JSONField(default=dict, blank=True)
+    site_popular_games_json = models.JSONField(default=dict, blank=True)
+    site_coming_soon_json = models.JSONField(default=dict, blank=True)
+    site_refer_bonus_json = models.JSONField(default=dict, blank=True)
+    site_payments_accepted_json = models.JSONField(default=dict, blank=True)
+    site_footer_json = models.JSONField(default=dict, blank=True)
+    site_welcome_deposit_json = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -33,7 +33,7 @@ def _parse_json_field(value, default=None):
         default = []
     if value is None or value == '':
         return default
-    if isinstance(value, list):
+    if isinstance(value, (list, dict)):
         return value
     try:
         return json.loads(value)
@@ -93,6 +93,16 @@ def site_setting_update(request):
             'instant_payouts': _parse_positive_int(request.data.get('instant_payouts')) or 0,
             'home_stats': _parse_json_field(request.data.get('home_stats'), []),
             'biggest_wins': _parse_json_field(request.data.get('biggest_wins'), []),
+            'site_categories_json': _parse_json_field(request.data.get('site_categories_json'), {}),
+            'site_top_games_json': _parse_json_field(request.data.get('site_top_games_json'), {}),
+            'site_providers_json': _parse_json_field(request.data.get('site_providers_json'), {}),
+            'site_categories_game_json': _parse_json_field(request.data.get('site_categories_game_json'), {}),
+            'site_popular_games_json': _parse_json_field(request.data.get('site_popular_games_json'), {}),
+            'site_coming_soon_json': _parse_json_field(request.data.get('site_coming_soon_json'), {}),
+            'site_refer_bonus_json': _parse_json_field(request.data.get('site_refer_bonus_json'), {}),
+            'site_payments_accepted_json': _parse_json_field(request.data.get('site_payments_accepted_json'), {}),
+            'site_footer_json': _parse_json_field(request.data.get('site_footer_json'), {}),
+            'site_welcome_deposit_json': _parse_json_field(request.data.get('site_welcome_deposit_json'), {}),
         }
         if request.FILES.get('logo'):
             data['logo'] = request.FILES.get('logo')

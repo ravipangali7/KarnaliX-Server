@@ -6,8 +6,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
-from core.models import SiteSetting, CMSPage, Testimonial, SliderSlide, LiveBettingSection, Popup
-from core.serializers import SiteSettingSerializer, CMSPageSerializer, TestimonialSerializer, SliderSlideSerializer, LiveBettingSectionSerializer, PopupSerializer
+from core.models import SiteSetting, CMSPage, Testimonial, SliderSlide, LiveBettingSection, Popup, PaymentMethod
+from core.serializers import SiteSettingSerializer, CMSPageSerializer, TestimonialSerializer, SliderSlideSerializer, LiveBettingSectionSerializer, PopupSerializer, PaymentMethodSerializer
 
 
 @api_view(['GET'])
@@ -65,6 +65,15 @@ def live_betting_list(request):
     """GET live betting sections with events for second home."""
     qs = LiveBettingSection.objects.prefetch_related('events').all()
     serializer = LiveBettingSectionSerializer(qs, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def payment_methods_list(request):
+    """GET all active payment methods (public, for home page payments accepted section)."""
+    qs = PaymentMethod.objects.filter(is_active=True)
+    serializer = PaymentMethodSerializer(qs, many=True, context={'request': request})
     return Response(serializer.data)
 
 
