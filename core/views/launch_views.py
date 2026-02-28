@@ -1,4 +1,6 @@
 """Game launch: build provider URL and redirect authenticated user."""
+import logging
+
 from django.conf import settings as django_settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -8,6 +10,8 @@ from rest_framework import status
 from core.permissions import require_role
 from core.models import SuperSetting, UserRole, Game
 from core.game_api_client import launch_game, build_launch_url
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_launch_base(launch_base: str) -> str:
@@ -111,8 +115,10 @@ def launch_game_by_id(request, game_id):
     if not game:
         return Response({"error": "Game not found"}, status=status.HTTP_404_NOT_FOUND)
     if not game.is_active:
+        logger.warning("Launch 400: game_id=%s game not active", game_id)
         return Response({"error": "Game is not available"}, status=status.HTTP_400_BAD_REQUEST)
     if not (game.game_uid and game.game_uid.strip()):
+        logger.warning("Launch 400: game_id=%s game has no game_uid", game_id)
         return Response({"error": "Game has no provider identifier"}, status=status.HTTP_400_BAD_REQUEST)
     game_uid = game.game_uid.strip()
 
@@ -120,26 +126,34 @@ def launch_game_by_id(request, game_id):
     super_settings = SuperSetting.get_settings()
 
     if not provider.is_active:
+        logger.warning("Launch 400: game_id=%s provider id=%s not active", game_id, provider.pk)
         return Response({"error": "Game provider is not available"}, status=status.HTTP_400_BAD_REQUEST)
 
     launch_base = (provider.api_endpoint or "").strip()
     if not launch_base and super_settings:
         launch_base = (getattr(super_settings, "game_api_launch_url", None) or "").strip() or (super_settings.game_api_url or "").strip()
     if not launch_base:
+        logger.warning("Launch 400: game_id=%s no launch base (provider or global)", game_id)
         return Response({"error": "Game provider is not available"}, status=status.HTTP_400_BAD_REQUEST)
     launch_base = _normalize_launch_base(launch_base)
 
     api_secret = (provider.api_secret or "").strip()
+    if not api_secret and super_settings:
+        api_secret = (getattr(super_settings, "game_api_secret", None) or "").strip()
     if not api_secret:
+        logger.warning("Launch 400: game_id=%s provider id=%s API secret not set", game_id, provider.pk)
         return Response(
-            {"error": "Provider API secret is not set. Configure it in the provider form."},
+            {"error": "Provider API secret is not set. Configure it in the provider form or Super Setting."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     api_token = (provider.api_token or "").strip()
+    if not api_token and super_settings:
+        api_token = (getattr(super_settings, "game_api_token", None) or "").strip()
     if not api_token:
+        logger.warning("Launch 400: game_id=%s provider id=%s API token not set", game_id, provider.pk)
         return Response(
-            {"error": "Provider API token is not set. Configure it in the provider form."},
+            {"error": "Provider API token is not set. Configure it in the provider form or Super Setting."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
