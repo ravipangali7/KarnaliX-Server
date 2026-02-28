@@ -14,6 +14,13 @@ from pathlib import Path
 import os
 import pymysql
 pymysql.install_as_MySQLdb()
+# Django 6 requires "mysqlclient 2.2.1+"; PyMySQL reports 1.x. Patch so Django accepts PyMySQL.
+import MySQLdb
+MySQLdb.version_info = (2, 2, 1, "final", 0)
+if hasattr(MySQLdb, "__version__"):
+    MySQLdb.__version__ = "2.2.1"
+if hasattr(MySQLdb, "Database"):
+    MySQLdb.Database.version_info = (2, 2, 1, "final", 0)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
