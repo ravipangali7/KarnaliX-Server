@@ -29,6 +29,7 @@ urlpatterns = [
     path('players/<int:pk>/report/', user_views.player_report),
     path('players/create/', user_views.player_create),
     path('players/<int:pk>/edit/', user_views.player_update),
+    path('players/<int:pk>/toggle-active/', user_views.player_toggle_active),
     path('players/<int:pk>/delete/', user_views.player_delete),
     path('players/<int:pk>/regenerate-pin/', user_views.player_regenerate_pin),
     path('players/<int:pk>/reset-password/', user_views.player_reset_password),

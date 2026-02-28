@@ -98,6 +98,28 @@ def player_delete(request, pk):
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def player_toggle_active(request, pk):
+    """Requires PIN; sets player is_active to request.data['is_active'] (bool)."""
+    err = require_role(request, [UserRole.MASTER])
+    if err:
+        return err
+    pin = request.data.get('pin')
+    if not pin or request.user.pin != pin:
+        return Response({'detail': 'Invalid PIN.'}, status=status.HTTP_400_BAD_REQUEST)
+    qs = get_players_queryset(request.user)
+    obj = qs.filter(pk=pk).first()
+    if not obj:
+        return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    is_active = request.data.get('is_active')
+    if is_active is None:
+        return Response({'detail': 'is_active required.'}, status=status.HTTP_400_BAD_REQUEST)
+    obj.is_active = bool(is_active)
+    obj.save(update_fields=['is_active'])
+    return Response(UserDetailSerializer(obj).data)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def player_report(request, pk):

@@ -324,6 +324,10 @@ class PaymentModeSerializer(serializers.ModelSerializer):
 class DepositSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     user_username = serializers.CharField(source='user.username', read_only=True)
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_phone = serializers.CharField(source='user.phone', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    user_whatsapp_number = serializers.CharField(source='user.whatsapp_number', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_mode_name = serializers.SerializerMethodField()
     payment_mode_qr_image = serializers.SerializerMethodField()
@@ -366,6 +370,10 @@ class DepositCreateSerializer(serializers.ModelSerializer):
 class WithdrawSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     user_username = serializers.CharField(source='user.username', read_only=True)
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_phone = serializers.CharField(source='user.phone', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    user_whatsapp_number = serializers.CharField(source='user.whatsapp_number', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_mode_name = serializers.SerializerMethodField()
     payment_mode_qr_image = serializers.SerializerMethodField()
@@ -407,6 +415,10 @@ class WithdrawCreateSerializer(serializers.ModelSerializer):
 # --- BonusRequest ---
 class BonusRequestSerializer(serializers.ModelSerializer):
     user_username = serializers.CharField(source='user.username', read_only=True)
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_phone = serializers.CharField(source='user.phone', read_only=True)
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    user_whatsapp_number = serializers.CharField(source='user.whatsapp_number', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     bonus_type_display = serializers.CharField(source='get_bonus_type_display', read_only=True)
     bonus_rule_name = serializers.SerializerMethodField()
