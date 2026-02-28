@@ -7,10 +7,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from core.models import GameCategory, GameSubCategory, GameProvider, Game, ComingSoonEnrollment
+from core.models import GameCategory, GameProvider, Game, ComingSoonEnrollment
 from core.serializers import (
     GameCategorySerializer,
-    GameSubCategorySerializer,
     GameProviderSerializer,
     GameListSerializer,
     GameDetailSerializer,
@@ -26,17 +25,6 @@ def category_list(request):
     serializer = GameCategorySerializer(qs, many=True)
     return Response(serializer.data)
 
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def subcategory_list(request):
-    """GET game subcategories (active). Optional query: category_id to filter by game category."""
-    qs = GameSubCategory.objects.filter(is_active=True).select_related('game_category').order_by('name')
-    category_id = request.query_params.get('category_id') or request.query_params.get('category')
-    if category_id:
-        qs = qs.filter(game_category_id=category_id)
-    serializer = GameSubCategorySerializer(qs, many=True)
-    return Response(serializer.data)
 
 
 @api_view(['GET'])

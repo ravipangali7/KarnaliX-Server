@@ -4,12 +4,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from core.permissions import require_role
-from core.models import Game, GameCategory, GameSubCategory, GameProvider, UserRole
+from core.models import Game, GameCategory, GameProvider, UserRole
 from core.serializers import (
     GameListSerializer,
     GameDetailSerializer,
     GameCategorySerializer,
-    GameSubCategorySerializer,
     GameProviderSerializer,
 )
 
@@ -69,40 +68,6 @@ def category_detail(request, pk):
     return Response(ser.data)
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
-def subcategory_list_create(request):
-    err = require_role(request, [UserRole.POWERHOUSE])
-    if err:
-        return err
-    if request.method == 'GET':
-        qs = GameSubCategory.objects.all().select_related('game_category').order_by('game_category__name', 'name')
-        return Response(GameSubCategorySerializer(qs, many=True).data)
-    ser = GameSubCategorySerializer(data=request.data)
-    ser.is_valid(raise_exception=True)
-    ser.save()
-    return Response(ser.data, status=status.HTTP_201_CREATED)
-
-
-@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def subcategory_detail(request, pk):
-    err = require_role(request, [UserRole.POWERHOUSE])
-    if err:
-        return err
-    obj = GameSubCategory.objects.filter(pk=pk).select_related('game_category').first()
-    if not obj:
-        return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    if request.method == 'GET':
-        return Response(GameSubCategorySerializer(obj).data)
-    if request.method == 'DELETE':
-        obj.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    ser = GameSubCategorySerializer(obj, data=request.data, partial=(request.method == 'PATCH'))
-    ser.is_valid(raise_exception=True)
-    ser.save()
-    return Response(ser.data)
-
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
@@ -146,7 +111,7 @@ def game_list_create(request):
     if err:
         return err
     if request.method == 'GET':
-        qs = Game.objects.all().select_related('category', 'provider', 'subcategory').order_by('name')
+        qs = Game.objects.all().select_related('category', 'provider').order_by('name')
         return Response(GameListSerializer(qs, many=True).data)
     data = _coerce_multipart_booleans(request.data)
     ser = GameDetailSerializer(data=data)
@@ -161,7 +126,7 @@ def game_detail(request, pk):
     err = require_role(request, [UserRole.POWERHOUSE])
     if err:
         return err
-    obj = Game.objects.filter(pk=pk).select_related('category', 'provider', 'subcategory').first()
+    obj = Game.objects.filter(pk=pk).select_related('category', 'provider').first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
     if request.method == 'GET':

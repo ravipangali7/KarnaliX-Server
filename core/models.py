@@ -488,34 +488,6 @@ class GameCategory(models.Model):
         return self.name
 
 
-# --- 8b. GameSubCategory ---
-
-class GameSubCategory(models.Model):
-    name = models.CharField(max_length=255)
-    svg = models.FileField(upload_to='subcategories/', blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-    game_category = models.ForeignKey(
-        GameCategory,
-        on_delete=models.CASCADE,
-        related_name='subcategories'
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = 'Game Sub Category'
-        verbose_name_plural = 'Game Sub Categories'
-        constraints = [
-            models.UniqueConstraint(
-                fields=["game_category", "name"],
-                name="unique_gamesubcategory_per_category",
-            ),
-        ]
-
-    def __str__(self):
-        return f"{self.name} ({self.game_category.name})"
-
-
 # --- 9. Game ---
 
 class Game(models.Model):
@@ -527,13 +499,6 @@ class Game(models.Model):
     category = models.ForeignKey(
         GameCategory,
         on_delete=models.CASCADE,
-        related_name='games'
-    )
-    subcategory = models.ForeignKey(
-        'GameSubCategory',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
         related_name='games'
     )
     name = models.CharField(max_length=255)

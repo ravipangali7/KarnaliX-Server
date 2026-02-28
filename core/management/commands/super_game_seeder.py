@@ -1,10 +1,8 @@
 """
-Super Game Seeder — seeds all providers, categories, subcategories, and games.
+Super Game Seeder — seeds all providers, categories, and games.
 
-Top-level categories (exactly 3): Live Casino, Slot, Sports.
-Each game is placed in the correct top-level category, then a subcategory
-(e.g. Roulette, Blackjack, Baccarat …) is created under it if it does not
-already exist.
+Categories are inferred from each game (e.g. Roulette, Blackjack, Baccarat,
+Slots, Sports Betting …) and created dynamically — no fixed set of categories.
 
 Providers covered:
   • Ezugi       — embedded list + docs/games/ezugiwebp images
@@ -21,7 +19,7 @@ Providers covered:
 Options:
   --dry-run      : print stats only; no DB writes
   --fresh        : delete all seeded providers/games first, then re-seed
-  --full-reset   : delete ALL Game, GameCategory, GameSubCategory, GameProvider, then re-seed
+  --full-reset   : delete ALL Game, GameCategory, GameProvider, then re-seed
   --providers    : comma-separated provider codes to limit (e.g. ezugi,jili,spribe)
   --images-only  : only fill missing images; do not create new games
 
@@ -40,7 +38,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 
-from core.models import Game, GameCategory, GameProvider, GameSubCategory
+from core.models import Game, GameCategory, GameProvider
 from core.management.utils import (
     find_image_for_game_in_folders,
     get_image_folder_candidates,
@@ -78,55 +76,11 @@ def _resolve_docs_games_path() -> Path:
 DOCS_GAMES = _resolve_docs_games_path()
 
 # ---------------------------------------------------------------------------
-# Category / Subcategory mapping
-#
-# TOP_CATEGORY: one of "Live Casino" | "Slot" | "Sports"
-# SUBCATEGORY:  granular label stored in GameSubCategory
+# Category inference — each game's category name is derived from its name/provider
 # ---------------------------------------------------------------------------
 
-def infer_top_category(name: str, provider_code: str) -> str:
-    """Return one of: 'Live Casino', 'Slot', 'Sports'."""
-    n = (name or "").lower()
-    p = (provider_code or "").lower()
-
-    # Sports providers
-    if p in ("saba_sports", "lucksportsgaming", "lucksportgaming"):
-        return "Sports"
-
-    # Live casino keywords
-    live_keywords = (
-        "baccarat", "blackjack", "roulette", "dragon tiger", "andar bahar",
-        "teen patti", "teenpatti", "sic bo", "sicbo", "poker", "hold'em",
-        "holdem", "craps", "caribbean", "stud", "casino hold", "lightning",
-        "mega ball", "dream catcher", "monopoly", "football studio",
-        "funky time", "crazy time", "fan tan", "deal or no deal",
-        "gonzo", "side bet", "imperial quest", "stock market", "cash or crash",
-        "dead or alive", "bac bo", "top card", "crazy coin", "crazy pachinko",
-        "gold vault", "immersive", "hindi roulette", "hindi speed",
-        "hindi lightning", "namaste", "super andar bahar",
-        "sedie", "hi lo", "hilo", "thai hi lo", "fish prawn crab",
-        "2020-teen", "20-20", "lucky 7", "32 cards", "cricket war",
-        "speed baccarat", "speed roulette", "speed blackjack",
-    )
-    for kw in live_keywords:
-        if kw in n:
-            return "Live Casino"
-
-    # Slot-like crash / mini-games providers that are NOT live-casino
-    slot_keywords = (
-        "fishing", "bingo", "keno", "crash", "mines", "plinko", "limbo",
-        "tower", "wheel", "go rush", "hilo", "hi lo", "balloon", "aviator",
-        "trader", "hotline", "goal", "dice", "mini roulette",
-    )
-    for kw in slot_keywords:
-        if kw in n:
-            return "Slot"
-
-    return "Slot"
-
-
 def infer_subcategory(name: str, provider_code: str) -> str:
-    """Return a granular subcategory label."""
+    """Return a category name inferred from game name and provider."""
     n = (name or "").lower()
     p = (provider_code or "").lower()
 
@@ -190,7 +144,6 @@ def infer_subcategory(name: str, provider_code: str) -> str:
     if any(kw in n for kw in ("lucky 7", "cricket war", "bet on numbers", "color game", "color prediction", "sedie", "fish prawn crab", "thai hi lo", "thai fish")):
         return "Table Games"
 
-    # Speed / VIP / Salon — still live casino subcategory
     if any(kw in n for kw in ("speed", "lightning", "immersive")):
         return "Live Casino"
 
@@ -739,8 +692,8 @@ def load_all_xlsx(docs_games: Path) -> list[tuple[str, str, list[GameRow], bool]
 
 class Command(BaseCommand):
     help = (
-        "Super Game Seeder: seeds all 10 providers, 3 top-level categories "
-        "(Live Casino, Slot, Sports), per-game subcategories, and games with images. "
+        "Super Game Seeder: seeds all 10 providers, per-game categories "
+        "(inferred from game name/provider), and games with images. "
         "Sources: embedded Ezugi/JILI lists + docs/games XLSX & TXT files. "
         "--full-reset: wipe all and re-seed. --fresh: wipe only seeded providers/games."
     )
@@ -759,7 +712,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--full-reset",
             action="store_true",
-            help="Delete ALL Game, GameSubCategory, GameCategory, GameProvider, then re-seed.",
+            help="Delete ALL Game, GameCategory, GameProvider, then re-seed.",
         )
         parser.add_argument(
             "--providers",
@@ -848,11 +801,10 @@ class Command(BaseCommand):
         # ── Full reset ──────────────────────────────────────────────────
         if full_reset and not images_only:
             gc, _ = Game.objects.all().delete()
-            sc, _ = GameSubCategory.objects.all().delete()
             cc, _ = GameCategory.objects.all().delete()
             pc, _ = GameProvider.objects.all().delete()
             self.stdout.write(self.style.WARNING(
-                f"Full reset: deleted {gc} games, {sc} subcategories, {cc} categories, {pc} providers."
+                f"Full reset: deleted {gc} games, {cc} categories, {pc} providers."
             ))
 
         # ── Fresh: delete only affected providers/games ─────────────────
@@ -865,17 +817,21 @@ class Command(BaseCommand):
                     prov.delete()
                     self.stdout.write(self.style.WARNING(f"Fresh: deleted provider '{code}' and {d} games."))
 
-        # ── Step 1: Seed top-level categories ───────────────────────────
-        TOP_CATEGORIES = ["Live Casino", "Slot", "Sports"]
+        # ── Step 1: Category cache (populated dynamically per game) ─────
         cat_cache: dict[str, GameCategory] = {}
-        for cat_name in TOP_CATEGORIES:
-            cat_obj, created = GameCategory.objects.get_or_create(
+
+        def get_cat(cat_name: str) -> GameCategory:
+            cat_name = (cat_name or "Other").strip()[:255] or "Other"
+            if cat_name in cat_cache:
+                return cat_cache[cat_name]
+            obj, created = GameCategory.objects.get_or_create(
                 name=cat_name,
                 defaults={"is_active": True},
             )
-            cat_cache[cat_name] = cat_obj
+            cat_cache[cat_name] = obj
             if created:
                 self.stdout.write(f"  Category created: {cat_name}")
+            return obj
 
         # ── Step 2: Seed providers ──────────────────────────────────────
         prov_cache: dict[str, GameProvider] = {}
@@ -892,27 +848,11 @@ class Command(BaseCommand):
             if created:
                 self.stdout.write(f"  Provider created: {display_name} ({code})")
 
-        # ── Step 3: Seed subcategories & games ──────────────────────────
-        subcat_cache: dict[tuple[str, str], GameSubCategory] = {}
+        # ── Step 3: Seed games ──────────────────────────────────────────
         zero = Decimal("0")
         created_games = 0
         skipped_games = 0
         images_set = 0
-
-        def get_subcat(top_cat_name: str, subcat_name: str) -> GameSubCategory:
-            # Normalize to avoid duplicate subcategories (e.g. "Sports Betting" vs " Sports Betting")
-            subcat_name = (subcat_name or "Other").strip()[:255] or "Other"
-            key = (top_cat_name, subcat_name)
-            if key in subcat_cache:
-                return subcat_cache[key]
-            parent = cat_cache[top_cat_name]
-            obj, _ = GameSubCategory.objects.get_or_create(
-                name=subcat_name,
-                game_category=parent,
-                defaults={"is_active": True},
-            )
-            subcat_cache[key] = obj
-            return obj
 
         def get_image(provider_code: str, game_name: str, game_uid: str) -> Path | None:
             _, img_slug = PROVIDERS.get(provider_code, (None, None))
@@ -936,10 +876,8 @@ class Command(BaseCommand):
                     continue
                 prov_cache[provider_code] = provider
 
-            top_cat_name = infer_top_category(game_name, provider_code)
-            subcat_name  = infer_subcategory(game_name, provider_code)
-            top_cat      = cat_cache[top_cat_name]
-            subcat       = get_subcat(top_cat_name, subcat_name)
+            cat_name = infer_subcategory(game_name, provider_code)
+            cat      = get_cat(cat_name)
 
             if images_only:
                 game = Game.objects.filter(provider=provider, game_uid=game_uid).first()
@@ -958,12 +896,11 @@ class Command(BaseCommand):
                 provider=provider,
                 game_uid=game_uid,
                 defaults={
-                    "name":        game_name,
-                    "category":    top_cat,
-                    "subcategory": subcat,
-                    "is_active":   True,
-                    "min_bet":     zero,
-                    "max_bet":     zero,
+                    "name":      game_name,
+                    "category":  cat,
+                    "is_active": True,
+                    "min_bet":   zero,
+                    "max_bet":   zero,
                 },
             )
 
@@ -971,16 +908,10 @@ class Command(BaseCommand):
                 created_games += 1
             else:
                 skipped_games += 1
-                # Always keep category and subcategory in sync (fix existing games that had none)
-                update_fields = []
-                if game.category_id != top_cat.id:
-                    game.category = top_cat
-                    update_fields.append("category")
-                if game.subcategory_id != subcat.id:
-                    game.subcategory = subcat
-                    update_fields.append("subcategory")
-                if update_fields:
-                    game.save(update_fields=update_fields)
+                # Keep category in sync if it changed
+                if game.category_id != cat.id:
+                    game.category = cat
+                    game.save(update_fields=["category"])
 
             if was_created or not game.image:
                 img_path = get_image(provider_code, game_name, game_uid)
@@ -995,8 +926,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"\nDone! "
             f"Providers in data: {len(provider_codes_in_data)}. "
-            f"Top categories: {len(cat_cache)}. "
-            f"Subcategories: {len(subcat_cache)}. "
+            f"Categories: {len(cat_cache)}. "
             f"Games created: {created_games}, skipped: {skipped_games}. "
             f"Images set: {images_set}."
         ))
