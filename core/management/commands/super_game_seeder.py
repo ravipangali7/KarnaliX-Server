@@ -24,10 +24,15 @@ Options:
   --full-reset   : delete ALL Game, GameCategory, GameSubCategory, GameProvider, then re-seed
   --providers    : comma-separated provider codes to limit (e.g. ezugi,jili,spribe)
   --images-only  : only fill missing images; do not create new games
+
+Path: Game data and images are read from docs/games. Resolved in order:
+  (1) DOCS_GAMES_PATH env or settings, (2) BASE_DIR.parent/docs/games,
+  (3) BASE_DIR/docs/games. On server, set DOCS_GAMES_PATH or place docs/games inside the project.
 """
 
 from __future__ import annotations
 
+import os
 from decimal import Decimal
 from pathlib import Path
 
@@ -41,11 +46,32 @@ from core.management.utils import (
     get_image_folder_candidates,
 )
 
+
+def _resolve_docs_games_path() -> Path:
+    """
+    Resolve docs/games directory: prefer DOCS_GAMES_PATH (env or settings),
+    then first existing of BASE_DIR.parent/docs/games or BASE_DIR/docs/games.
+    Use BASE_DIR/docs/games as default so deployment can place files inside project.
+    """
+    base = Path(settings.BASE_DIR)
+    explicit = os.environ.get("DOCS_GAMES_PATH") or getattr(settings, "DOCS_GAMES_PATH", None)
+    if explicit:
+        p = Path(explicit).resolve()
+        return p
+    parent_docs = base.parent / "docs" / "games"
+    inner_docs = base / "docs" / "games"
+    if parent_docs.exists():
+        return parent_docs
+    if inner_docs.exists():
+        return inner_docs
+    return inner_docs  # default so server can create docs/games inside project
+
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 
-DOCS_GAMES = Path(settings.BASE_DIR).parent / "docs" / "games"
+DOCS_GAMES = _resolve_docs_games_path()
 
 # ---------------------------------------------------------------------------
 # Category / Subcategory mapping
@@ -758,7 +784,12 @@ class Command(BaseCommand):
 
         docs_games = DOCS_GAMES
         if not docs_games.exists() and not dry_run:
-            self.stdout.write(self.style.WARNING(f"docs/games path not found: {docs_games}"))
+            self.stdout.write(
+                self.style.WARNING(
+                    f"docs/games path not found: {docs_games}. "
+                    "Place XLSX/TXT and image folders there, or set DOCS_GAMES_PATH (env or settings)."
+                )
+            )
 
         # ── Load all game rows ──────────────────────────────────────────
         self.stdout.write("Loading game data sources:")
