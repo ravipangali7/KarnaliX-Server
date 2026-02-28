@@ -28,6 +28,7 @@ urlpatterns = [
     path('testimonials/', site_views.testimonials_list),
     # Games
     path('categories/', game_views.category_list),
+    path('subcategories/', game_views.subcategory_list),
     path('providers/', game_views.provider_list),
     path('providers/<int:pk>/', game_views.provider_detail),
     path('games/', game_views.game_list),

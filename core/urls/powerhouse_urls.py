@@ -73,6 +73,8 @@ urlpatterns = [
     path('activity/', activity_views.activity_list),
     path('categories/', game_views.category_list_create),
     path('categories/<int:pk>/', game_views.category_detail),
+    path('subcategories/', game_views.subcategory_list_create),
+    path('subcategories/<int:pk>/', game_views.subcategory_detail),
     path('providers/', game_views.provider_list_create),
     path('providers/<int:pk>/', game_views.provider_detail),
     path('games/', game_views.game_list_create),

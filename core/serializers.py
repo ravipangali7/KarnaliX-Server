@@ -19,6 +19,7 @@ from .models import (
     BonusRule,
     GameProvider,
     GameCategory,
+    GameSubCategory,
     Game,
     ComingSoonEnrollment,
     GameLog,
@@ -472,6 +473,13 @@ class GameCategorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+# --- GameSubCategory ---
+class GameSubCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GameSubCategory
+        fields = '__all__'
+
+
 # --- Game ---
 class GameListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
@@ -484,7 +492,7 @@ class GameListSerializer(serializers.ModelSerializer):
             'id', 'name', 'game_uid', 'image', 'image_url', 'min_bet', 'max_bet', 'is_active',
             'category', 'category_name', 'provider', 'provider_name', 'provider_code',
             'is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description',
-            'is_single_game', 'created_at',
+            'is_single_game', 'is_top_game', 'is_popular_game', 'created_at',
         ]
 
 
@@ -494,7 +502,11 @@ class GameDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Game
-        fields = '__all__'
+        fields = [
+            'id', 'name', 'game_uid', 'image', 'image_url', 'min_bet', 'max_bet', 'is_active',
+            'category', 'provider', 'is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description',
+            'is_single_game', 'is_top_game', 'is_popular_game', 'created_at', 'updated_at',
+        ]
 
 
 class ComingSoonGameSerializer(serializers.ModelSerializer):
