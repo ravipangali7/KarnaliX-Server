@@ -25,9 +25,9 @@ Options:
   --providers    : comma-separated provider codes to limit (e.g. ezugi,jili,spribe)
   --images-only  : only fill missing images; do not create new games
 
-Path: Game data and images are read from docs/games. Resolved in order:
-  (1) DOCS_GAMES_PATH env or settings, (2) BASE_DIR.parent/docs/games,
-  (3) BASE_DIR/docs/games. On server, set DOCS_GAMES_PATH or place docs/games inside the project.
+Path: Game data and images are read from a single folder. Resolved in order:
+  (1) DOCS_GAMES_PATH env or settings, (2) commands/games_data (shipped with app for VPS),
+  (3) BASE_DIR.parent/docs/games, (4) BASE_DIR/docs/games. Put XLSX, TXT, and image folders in games_data so the seeder works on VPS without config.
 """
 
 from __future__ import annotations
@@ -49,22 +49,26 @@ from core.management.utils import (
 
 def _resolve_docs_games_path() -> Path:
     """
-    Resolve docs/games directory: prefer DOCS_GAMES_PATH (env or settings),
-    then first existing of BASE_DIR.parent/docs/games or BASE_DIR/docs/games.
-    Use BASE_DIR/docs/games as default so deployment can place files inside project.
+    Resolve game data directory. Order: (1) DOCS_GAMES_PATH if set,
+    (2) commands/games_data if it exists (shipped with app for VPS),
+    (3) BASE_DIR.parent/docs/games, (4) BASE_DIR/docs/games.
     """
     base = Path(settings.BASE_DIR)
     explicit = os.environ.get("DOCS_GAMES_PATH") or getattr(settings, "DOCS_GAMES_PATH", None)
     if explicit:
-        p = Path(explicit).resolve()
-        return p
+        return Path(explicit).resolve()
+    # Same package as this command — deploy with app so VPS works without config
+    commands_dir = Path(__file__).resolve().parent
+    games_data = commands_dir / "games_data"
+    if games_data.exists():
+        return games_data
     parent_docs = base.parent / "docs" / "games"
     inner_docs = base / "docs" / "games"
     if parent_docs.exists():
         return parent_docs
     if inner_docs.exists():
         return inner_docs
-    return inner_docs  # default so server can create docs/games inside project
+    return games_data  # default: use games_data so deploy can add files there
 
 
 # ---------------------------------------------------------------------------
