@@ -485,12 +485,14 @@ class GameListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     provider_name = serializers.CharField(source='provider.name', read_only=True)
     provider_code = serializers.CharField(source='provider.code', read_only=True)
+    subcategory_name = serializers.CharField(source='subcategory.name', read_only=True, default=None)
 
     class Meta:
         model = Game
         fields = [
             'id', 'name', 'game_uid', 'image', 'image_url', 'min_bet', 'max_bet', 'is_active',
             'category', 'category_name', 'provider', 'provider_name', 'provider_code',
+            'subcategory', 'subcategory_name',
             'is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description',
             'is_single_game', 'is_top_game', 'is_popular_game', 'created_at',
         ]
@@ -499,12 +501,16 @@ class GameListSerializer(serializers.ModelSerializer):
 class GameDetailSerializer(serializers.ModelSerializer):
     category = serializers.PrimaryKeyRelatedField(queryset=GameCategory.objects.all())
     provider = serializers.PrimaryKeyRelatedField(queryset=GameProvider.objects.all())
+    subcategory = serializers.PrimaryKeyRelatedField(
+        queryset=GameSubCategory.objects.all(), allow_null=True, required=False
+    )
 
     class Meta:
         model = Game
         fields = [
             'id', 'name', 'game_uid', 'image', 'image_url', 'min_bet', 'max_bet', 'is_active',
-            'category', 'provider', 'is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description',
+            'category', 'provider', 'subcategory',
+            'is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description',
             'is_single_game', 'is_top_game', 'is_popular_game', 'created_at', 'updated_at',
         ]
 
