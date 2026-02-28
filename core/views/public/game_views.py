@@ -47,10 +47,18 @@ def provider_detail(request, pk):
     games_count = Game.objects.filter(provider_id=pk, is_active=True).count()
     categories_qs = (
         Game.objects.filter(provider_id=pk, is_active=True)
-        .values_list('category_id', 'category__name')
+        .values_list('category_id', 'category__name', 'category__svg')
         .distinct()
     )
-    categories = [{'id': cid, 'name': cname or ''} for cid, cname in categories_qs]
+    from django.conf import settings
+    def _svg_url(svg_field):
+        if not svg_field:
+            return None
+        name = str(svg_field)
+        if name.startswith(('http://', 'https://', 'data:', '<svg')):
+            return name
+        return request.build_absolute_uri(settings.MEDIA_URL + name)
+    categories = [{'id': cid, 'name': cname or '', 'svg': _svg_url(csvg)} for cid, cname, csvg in categories_qs]
     return Response({
         **provider_data,
         'games_count': games_count,
