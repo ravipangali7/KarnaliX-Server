@@ -106,6 +106,7 @@ def site_setting_update(request):
             'site_payments_accepted_json': _parse_json_field(request.data.get('site_payments_accepted_json'), {}),
             'site_footer_json': _parse_json_field(request.data.get('site_footer_json'), {}),
             'site_welcome_deposit_json': _parse_json_field(request.data.get('site_welcome_deposit_json'), {}),
+            'site_theme_json': _parse_json_field(request.data.get('site_theme_json'), {}),
         }
         if request.FILES.get('logo'):
             data['logo'] = request.FILES.get('logo')

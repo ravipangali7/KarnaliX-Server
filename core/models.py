@@ -816,6 +816,7 @@ class SiteSetting(models.Model):
     site_payments_accepted_json = models.JSONField(default=dict, blank=True)
     site_footer_json = models.JSONField(default=dict, blank=True)
     site_welcome_deposit_json = models.JSONField(default=dict, blank=True)
+    site_theme_json = models.JSONField(default=dict, blank=True)  # CSS var overrides: primary, accent, etc. (HSL strings)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
