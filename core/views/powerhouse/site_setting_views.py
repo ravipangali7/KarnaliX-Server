@@ -13,6 +13,9 @@ ALLOWED_SITE_THEME_KEYS = frozenset({
     'primary', 'primary_foreground', 'accent', 'accent_foreground',
     'gold', 'gold_foreground', 'sidebar_primary', 'sidebar_primary_foreground',
     'sidebar_accent', 'ring',
+    'background', 'foreground', 'card', 'muted', 'muted_foreground',
+    'border', 'sidebar_border', 'destructive', 'success', 'neon',
+    'neon_green', 'sidebar_foreground',
 })
 
 
