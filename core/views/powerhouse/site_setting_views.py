@@ -9,13 +9,11 @@ from core.permissions import require_role
 from core.models import SiteSetting, UserRole
 from core.serializers import SiteSettingSerializer
 
+# Main color keys only: dark/light feel + brand. Must match frontend SITE_THEME_KEYS.
 ALLOWED_SITE_THEME_KEYS = frozenset({
-    'primary', 'primary_foreground', 'accent', 'accent_foreground',
-    'gold', 'gold_foreground', 'sidebar_primary', 'sidebar_primary_foreground',
-    'sidebar_accent', 'ring',
     'background', 'foreground', 'card', 'muted', 'muted_foreground',
-    'border', 'sidebar_border', 'destructive', 'success', 'neon',
-    'neon_green', 'sidebar_foreground',
+    'border', 'primary', 'primary_foreground', 'accent', 'accent_foreground',
+    'ring', 'gold',
 })
 
 
