@@ -475,7 +475,8 @@ class GameProvider(models.Model):
 
 class GameCategory(models.Model):
     name = models.CharField(max_length=255)
-    svg = models.FileField(upload_to='categories/', blank=True, null=True)
+    svg = models.FileField(upload_to='categories/', blank=True, null=True)  # deprecated: use icon
+    icon = models.ImageField(upload_to='categories/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
