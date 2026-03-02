@@ -9,6 +9,23 @@ from core.permissions import require_role
 from core.models import SiteSetting, UserRole
 from core.serializers import SiteSettingSerializer
 
+ALLOWED_SITE_THEME_KEYS = frozenset({
+    'primary', 'primary_foreground', 'accent', 'accent_foreground',
+    'gold', 'gold_foreground', 'sidebar_primary', 'sidebar_primary_foreground',
+    'sidebar_accent', 'ring',
+})
+
+
+def _sanitize_site_theme_json(value):
+    """Return a dict with only allowed theme keys; values must be strings."""
+    parsed = _parse_json_field(value, {})
+    if not isinstance(parsed, dict):
+        return {}
+    return {
+        k: str(v).strip() for k, v in parsed.items()
+        if k in ALLOWED_SITE_THEME_KEYS and v is not None and str(v).strip()
+    }
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -106,12 +123,16 @@ def site_setting_update(request):
             'site_payments_accepted_json': _parse_json_field(request.data.get('site_payments_accepted_json'), {}),
             'site_footer_json': _parse_json_field(request.data.get('site_footer_json'), {}),
             'site_welcome_deposit_json': _parse_json_field(request.data.get('site_welcome_deposit_json'), {}),
-            'site_theme_json': _parse_json_field(request.data.get('site_theme_json'), {}),
+            'site_theme_json': _sanitize_site_theme_json(request.data.get('site_theme_json')),
         }
         if request.FILES.get('logo'):
             data['logo'] = request.FILES.get('logo')
         if request.FILES.get('favicon'):
             data['favicon'] = request.FILES.get('favicon')
+    else:
+        if 'site_theme_json' in data:
+            data = dict(data)
+            data['site_theme_json'] = _sanitize_site_theme_json(data.get('site_theme_json'))
 
     ser = SiteSettingSerializer(obj, data=data, partial=(request.method == 'PATCH'))
     ser.is_valid(raise_exception=True)
