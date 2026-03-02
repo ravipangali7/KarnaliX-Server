@@ -477,9 +477,13 @@ class GameProviderSerializer(serializers.ModelSerializer):
         ]
 
     def get_single_game_id(self, obj):
-        qs = Game.objects.filter(provider=obj, is_active=True, is_single_game=True)
-        if qs.count() == 1:
+        qs = Game.objects.filter(provider=obj, is_active=True)
+        count = qs.count()
+        if count == 1:
             return qs.values_list('id', flat=True).first()
+        if count > 1:
+            lobby = qs.filter(is_lobby=True).first()
+            return lobby.id if lobby else None
         return None
 
 
@@ -502,7 +506,7 @@ class GameListSerializer(serializers.ModelSerializer):
             'id', 'name', 'game_uid', 'image', 'image_url', 'min_bet', 'max_bet', 'is_active',
             'category', 'category_name', 'provider', 'provider_name', 'provider_code',
             'is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description',
-            'is_single_game', 'is_top_game', 'is_popular_game', 'created_at',
+            'is_top_game', 'is_popular_game', 'is_lobby', 'created_at',
         ]
 
 
@@ -516,7 +520,7 @@ class GameDetailSerializer(serializers.ModelSerializer):
             'id', 'name', 'game_uid', 'image', 'image_url', 'min_bet', 'max_bet', 'is_active',
             'category', 'provider',
             'is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description',
-            'is_single_game', 'is_top_game', 'is_popular_game', 'created_at', 'updated_at',
+            'is_top_game', 'is_popular_game', 'is_lobby', 'created_at', 'updated_at',
         ]
 
 

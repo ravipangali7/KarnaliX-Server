@@ -512,9 +512,9 @@ class Game(models.Model):
     is_coming_soon = models.BooleanField(default=False)
     coming_soon_launch_date = models.DateField(null=True, blank=True)
     coming_soon_description = models.TextField(blank=True)
-    is_single_game = models.BooleanField(default=False)
     is_top_game = models.BooleanField(default=False)
     is_popular_game = models.BooleanField(default=False)
+    is_lobby = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
