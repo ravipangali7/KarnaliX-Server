@@ -17,7 +17,8 @@ ALLOWED_SITE_THEME_KEYS = frozenset({
 
 
 def _sanitize_site_theme_json(value):
-    """Return a dict with only allowed theme keys; values must be strings."""
+    """Return a dict with only allowed theme keys; values must be strings.
+    Values may be hex, rgb, hsl, cmyk, or hsv; frontend converts to HSL when applying."""
     parsed = _parse_json_field(value, {})
     if not isinstance(parsed, dict):
         return {}
