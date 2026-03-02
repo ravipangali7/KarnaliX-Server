@@ -86,6 +86,7 @@ urlpatterns = [
     path('super-settings/save/', super_setting_views.super_setting_save),
     path('site-settings/', site_setting_views.site_setting_get),
     path('site-settings/update/', site_setting_views.site_setting_update),
+    path('upload-site-media/', site_setting_views.upload_site_media),
     path('slider/', slider_views.slider_list_create),
     path('slider/<int:pk>/', slider_views.slider_detail),
     path('popup/', popup_views.popup_list_create),

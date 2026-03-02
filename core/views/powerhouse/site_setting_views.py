@@ -1,7 +1,10 @@
 import json
+import uuid
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework import status
+from django.core.files.storage import default_storage
 from core.permissions import require_role
 from core.models import SiteSetting, UserRole
 from core.serializers import SiteSettingSerializer
@@ -113,3 +116,27 @@ def site_setting_update(request):
     ser.is_valid(raise_exception=True)
     ser.save()
     return Response(ser.data)
+
+
+ALLOWED_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'}
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_site_media(request):
+    """Upload an image for site section icons etc. Returns { url: "<relative path>" }."""
+    err = require_role(request, [UserRole.POWERHOUSE])
+    if err:
+        return err
+    file = request.FILES.get('file') or request.FILES.get('image')
+    if not file:
+        return Response({'detail': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+    name = getattr(file, 'name', '') or 'image'
+    ext = ''
+    if '.' in name:
+        ext = '.' + name.rsplit('.', 1)[-1].lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        ext = '.png'
+    path = f"site/sections/{uuid.uuid4().hex}{ext}"
+    saved_path = default_storage.save(path, file)
+    return Response({'url': saved_path})
