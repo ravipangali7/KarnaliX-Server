@@ -67,11 +67,16 @@ def master_update(request, pk):
     err = require_role(request, [UserRole.SUPER])
     if err:
         return err
+    pin_err = _verify_super_pin(request)
+    if pin_err:
+        return pin_err
+    data = request.data.copy()
+    data.pop('pin', None)
     qs = get_masters_queryset(request.user)
     obj = qs.filter(pk=pk).first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    ser = UserCreateUpdateSerializer(obj, data=request.data, partial=(request.method == 'PATCH'))
+    ser = UserCreateUpdateSerializer(obj, data=data, partial=(request.method == 'PATCH'))
     ser.is_valid(raise_exception=True)
     ser.save()
     return Response(UserDetailSerializer(obj).data)
@@ -193,11 +198,16 @@ def player_update(request, pk):
     err = require_role(request, [UserRole.SUPER])
     if err:
         return err
+    pin_err = _verify_super_pin(request)
+    if pin_err:
+        return pin_err
+    data = request.data.copy()
+    data.pop('pin', None)
     qs = get_players_queryset(request.user)
     obj = qs.filter(pk=pk).first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    ser = UserCreateUpdateSerializer(obj, data=request.data, partial=(request.method == 'PATCH'))
+    ser = UserCreateUpdateSerializer(obj, data=data, partial=(request.method == 'PATCH'))
     ser.is_valid(raise_exception=True)
     ser.save()
     return Response(UserDetailSerializer(obj).data)

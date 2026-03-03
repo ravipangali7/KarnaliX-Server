@@ -41,16 +41,30 @@ def payment_mode_detail(request, pk):
     return Response(PaymentModeSerializer(obj, context={'request': request}).data)
 
 
+def _verify_pin(request):
+    pin = request.data.get('pin')
+    if not pin:
+        return Response({'detail': 'PIN required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not request.user.pin or request.user.pin != pin:
+        return Response({'detail': 'Invalid PIN.'}, status=status.HTTP_400_BAD_REQUEST)
+    return None
+
+
 @api_view(['PATCH', 'PUT'])
 @permission_classes([IsAuthenticated])
 def payment_mode_update(request, pk):
     err = require_role(request, [UserRole.MASTER])
     if err:
         return err
+    pin_err = _verify_pin(request)
+    if pin_err:
+        return pin_err
+    data = request.data.copy()
+    data.pop('pin', None)
     obj = _qs(request).filter(pk=pk).first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    ser = PaymentModeSerializer(obj, data=request.data, partial=(request.method == 'PATCH'))
+    ser = PaymentModeSerializer(obj, data=data, partial=(request.method == 'PATCH'))
     ser.is_valid(raise_exception=True)
     ser.save()
     return Response(PaymentModeSerializer(ser.instance, context={'request': request}).data)

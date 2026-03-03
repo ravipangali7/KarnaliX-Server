@@ -161,15 +161,22 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
 class UserCreateUpdateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, min_length=6)
+    main_balance = serializers.DecimalField(max_digits=16, decimal_places=2, required=False, min_value=0)
+    bonus_balance = serializers.DecimalField(max_digits=16, decimal_places=2, required=False, min_value=0)
+    exposure_balance = serializers.DecimalField(max_digits=16, decimal_places=2, required=False, min_value=0)
+    exposure_limit = serializers.DecimalField(max_digits=16, decimal_places=2, required=False, min_value=0)
 
     class Meta:
         model = User
         fields = [
             'username', 'password', 'name', 'email', 'phone', 'whatsapp_number',
             'commission_percentage', 'parent', 'role',
+            'main_balance', 'bonus_balance', 'exposure_balance', 'exposure_limit',
         ]
 
     def create(self, validated_data):
+        for key in ('main_balance', 'bonus_balance', 'exposure_balance', 'exposure_limit'):
+            validated_data.pop(key, None)
         password = validated_data.pop('password', None)
         if password:
             user = User(**validated_data)

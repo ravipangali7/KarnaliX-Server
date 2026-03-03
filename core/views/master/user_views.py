@@ -68,17 +68,32 @@ def player_create(request):
     return Response(UserDetailSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
+def _verify_master_pin(request):
+    """Verify master PIN from request.data. Returns None or error Response."""
+    pin = request.data.get('pin')
+    if not pin:
+        return Response({'detail': 'PIN required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not request.user.pin or request.user.pin != pin:
+        return Response({'detail': 'Invalid PIN.'}, status=status.HTTP_400_BAD_REQUEST)
+    return None
+
+
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def player_update(request, pk):
     err = require_role(request, [UserRole.MASTER])
     if err:
         return err
+    pin_err = _verify_master_pin(request)
+    if pin_err:
+        return pin_err
+    data = request.data.copy()
+    data.pop('pin', None)
     qs = get_players_queryset(request.user)
     obj = qs.filter(pk=pk).first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    ser = UserCreateUpdateSerializer(obj, data=request.data, partial=(request.method == 'PATCH'))
+    ser = UserCreateUpdateSerializer(obj, data=data, partial=(request.method == 'PATCH'))
     ser.is_valid(raise_exception=True)
     ser.save()
     return Response(UserDetailSerializer(obj).data)
