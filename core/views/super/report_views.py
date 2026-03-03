@@ -3,9 +3,9 @@ from decimal import Decimal
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.db.models import Sum, Count
+from django.db.models import Sum
 from core.permissions import require_role, get_masters_queryset, get_players_queryset
-from core.models import Deposit, Withdraw, User, UserRole
+from core.models import Deposit, Withdraw, UserRole
 
 
 def _date_filter(qs, date_from, date_to, date_field="created_at"):
@@ -19,16 +19,15 @@ def _date_filter(qs, date_from, date_to, date_field="created_at"):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def total_dw_list(request):
-    """Per-user deposit/withdrawal totals (super: masters + players). date_from, date_to."""
+    """Per-user deposit/withdrawal totals (super: players only). date_from, date_to."""
     err = require_role(request, [UserRole.SUPER])
     if err:
         return err
     date_from = request.query_params.get("date_from", "").strip()
     date_to = request.query_params.get("date_to", "").strip()
-    masters = get_masters_queryset(request.user)
     players = get_players_queryset(request.user)
     results = []
-    for user in list(masters) + list(players):
+    for user in players:
         dep_qs = _date_filter(
             Deposit.objects.filter(user=user, status="approved"),
             date_from, date_to
@@ -90,38 +89,35 @@ def super_master_dw_list(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def super_dw_state_list(request):
-    """One row per user (masters + players): no_of_deposit, total_deposit, no_of_withdrawal, total_withdrawal, net_d_w, total_d_w."""
+    """One row: logged-in super's own D/W data only. date_from, date_to."""
     err = require_role(request, [UserRole.SUPER])
     if err:
         return err
     date_from = request.query_params.get("date_from", "").strip()
     date_to = request.query_params.get("date_to", "").strip()
-    masters = get_masters_queryset(request.user)
-    players = get_players_queryset(request.user)
-    results = []
-    for user in list(masters) + list(players):
-        dep_qs = _date_filter(
-            Deposit.objects.filter(user=user, status="approved"),
-            date_from, date_to
-        )
-        wd_qs = _date_filter(
-            Withdraw.objects.filter(user=user, status="approved"),
-            date_from, date_to
-        )
-        no_dep = dep_qs.count()
-        no_wd = wd_qs.count()
-        total_dep = dep_qs.aggregate(s=Sum("amount"))["s"] or Decimal("0")
-        total_wd = wd_qs.aggregate(s=Sum("amount"))["s"] or Decimal("0")
-        net_d_w = total_dep - total_wd
-        total_d_w = total_dep + total_wd
-        results.append({
-            "username": user.username,
-            "user_id": user.id,
-            "no_of_deposit": no_dep,
-            "total_deposit": str(total_dep),
-            "no_of_withdrawal": no_wd,
-            "total_withdrawal": str(total_wd),
-            "net_d_w": str(net_d_w),
-            "total_d_w": str(total_d_w),
-        })
+    user = request.user
+    dep_qs = _date_filter(
+        Deposit.objects.filter(user=user, status="approved"),
+        date_from, date_to
+    )
+    wd_qs = _date_filter(
+        Withdraw.objects.filter(user=user, status="approved"),
+        date_from, date_to
+    )
+    no_dep = dep_qs.count()
+    no_wd = wd_qs.count()
+    total_dep = dep_qs.aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    total_wd = wd_qs.aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    net_d_w = total_dep - total_wd
+    total_d_w = total_dep + total_wd
+    results = [{
+        "username": user.username,
+        "user_id": user.id,
+        "no_of_deposit": no_dep,
+        "total_deposit": str(total_dep),
+        "no_of_withdrawal": no_wd,
+        "total_withdrawal": str(total_wd),
+        "net_d_w": str(net_d_w),
+        "total_d_w": str(total_d_w),
+    }]
     return Response(results)
