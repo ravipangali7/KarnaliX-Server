@@ -13,6 +13,8 @@ from core.views.master import (
     payment_mode_verification_views,
     me_views,
     accounting_views,
+    statement_views,
+    report_views,
 )
 
 urlpatterns = [
@@ -42,6 +44,9 @@ urlpatterns = [
     path('game-log/<int:pk>/', game_log_views.game_log_detail),
     path('transactions/', transaction_views.transaction_list),
     path('accounting-report/', accounting_views.accounting_report),
+    path('account-statement/', statement_views.account_statement_list),
+    path('bonus-statement/', statement_views.bonus_statement_list),
+    path('client-request/total-dw/', report_views.total_dw_list),
     path('activity/', activity_views.activity_list),
     path('messages/', message_views.message_list),
     path('messages/contacts/', message_views.message_contacts),
