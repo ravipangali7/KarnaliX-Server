@@ -26,8 +26,8 @@ def wallet(request):
     return Response({
         'main_balance': str(u.main_balance or 0),
         'bonus_balance': str(u.bonus_balance or 0),
-        'deposits': DepositSerializer(Deposit.objects.filter(user=u).select_related('payment_mode').order_by('-created_at')[:50], many=True, context=ctx).data,
-        'withdrawals': WithdrawSerializer(Withdraw.objects.filter(user=u).select_related('payment_mode').order_by('-created_at')[:50], many=True, context=ctx).data,
+        'deposits': DepositSerializer(Deposit.objects.filter(user=u).select_related('payment_mode', 'payment_mode__payment_method').order_by('-created_at')[:50], many=True, context=ctx).data,
+        'withdrawals': WithdrawSerializer(Withdraw.objects.filter(user=u).select_related('payment_mode', 'payment_mode__payment_method').order_by('-created_at')[:50], many=True, context=ctx).data,
         'bonus_requests': BonusRequestSerializer(BonusRequest.objects.filter(user=u).select_related('bonus_rule').order_by('-created_at')[:50], many=True, context=ctx).data,
     })
 
@@ -96,7 +96,7 @@ def deposit_payment_modes(request):
     parent = request.user.parent
     if not parent:
         return Response([])
-    qs = PaymentMode.objects.filter(user=parent, status='approved')
+    qs = PaymentMode.objects.filter(user=parent, status='approved').select_related('payment_method')
     return Response(PaymentModeSerializer(qs, many=True, context={'request': request}).data)
 
 
@@ -106,7 +106,7 @@ def payment_mode_list_create(request):
     err = require_role(request, [UserRole.PLAYER])
     if err: return err
     if request.method == 'GET':
-        return Response(PaymentModeSerializer(PaymentMode.objects.filter(user=request.user), many=True, context={'request': request}).data)
+        return Response(PaymentModeSerializer(PaymentMode.objects.filter(user=request.user).select_related('payment_method'), many=True, context={'request': request}).data)
     data = request.data.copy()
     if request.FILES:
         for key in request.FILES:

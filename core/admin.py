@@ -43,7 +43,7 @@ class PaymentModeInline(admin.TabularInline):
     model = PaymentMode
     fk_name = 'user'
     extra = 0
-    fields = ('name', 'type', 'wallet_phone', 'bank_name', 'bank_account_no', 'status')
+    fields = ('payment_method', 'details', 'qr_image', 'status')
 
 
 # --- User Admin (replace default) ---
@@ -147,8 +147,8 @@ class SignupSessionAdmin(admin.ModelAdmin):
 
 @admin.register(PaymentMode)
 class PaymentModeAdmin(admin.ModelAdmin):
-    list_display = ('user', 'name', 'type', 'status', 'created_at')
-    list_filter = ('type', 'status')
+    list_display = ('user', 'status', 'created_at')
+    list_filter = ('status',)
     search_fields = ('name', 'user__username')
     autocomplete_fields = ('user',)
 

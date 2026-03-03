@@ -9,7 +9,7 @@ from core.serializers import PaymentModeSerializer
 
 
 def _qs(request):
-    return PaymentMode.objects.filter(user=request.user)
+    return PaymentMode.objects.filter(user=request.user).select_related('payment_method')
 
 
 @api_view(['GET', 'POST'])

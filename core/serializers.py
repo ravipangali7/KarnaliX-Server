@@ -1,6 +1,7 @@
 """
 DRF serializers for core models.
 """
+import json
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import (
@@ -336,14 +337,31 @@ class LiveBettingSectionSerializer(serializers.ModelSerializer):
 
 # --- PaymentMode ---
 class PaymentModeSerializer(serializers.ModelSerializer):
-    type_display = serializers.CharField(source='get_type_display', read_only=True)
+    payment_method_name = serializers.SerializerMethodField()
+    payment_method_fields = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     qr_image_url = serializers.SerializerMethodField()
     user_username = serializers.CharField(source='user.username', read_only=True)
 
     class Meta:
         model = PaymentMode
-        fields = '__all__'
+        fields = [
+            'id', 'user', 'user_username', 'payment_method', 'payment_method_name', 'payment_method_fields',
+            'qr_image', 'qr_image_url', 'details',
+            'status', 'status_display', 'reject_reason', 'action_by', 'action_at',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['reject_reason', 'action_by', 'action_at']
+
+    def get_payment_method_name(self, obj):
+        if obj.payment_method_id:
+            return obj.payment_method.name
+        return None
+
+    def get_payment_method_fields(self, obj):
+        if obj.payment_method_id and obj.payment_method.fields:
+            return obj.payment_method.fields
+        return {}
 
     def get_qr_image_url(self, obj):
         if not obj.qr_image:
@@ -352,6 +370,24 @@ class PaymentModeSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(obj.qr_image.url)
         return obj.qr_image.url
+
+    def validate(self, attrs):
+        if not self.instance and not attrs.get('payment_method'):
+            raise serializers.ValidationError({'payment_method': 'This field is required when creating a payment mode.'})
+        details = attrs.get('details', (self.instance and self.instance.details) if self.instance else {})
+        if isinstance(details, str):
+            try:
+                details = json.loads(details)
+                attrs['details'] = details
+            except (TypeError, ValueError):
+                raise serializers.ValidationError({'details': 'Invalid JSON.'})
+        payment_method = attrs.get('payment_method') or (self.instance and self.instance.payment_method if self.instance else None)
+        if payment_method and isinstance(details, dict):
+            allowed = set((payment_method.fields or {}).keys())
+            if allowed and not set(details.keys()).issubset(allowed):
+                extra = set(details.keys()) - allowed
+                raise serializers.ValidationError({'details': f'Invalid keys: {extra}. Allowed: {list(allowed)}'})
+        return attrs
 
 
 # --- Deposit ---
@@ -372,7 +408,9 @@ class DepositSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_payment_mode_name(self, obj):
-        return obj.payment_mode.name if obj.payment_mode else None
+        if not obj.payment_mode or not obj.payment_mode.payment_method_id:
+            return None
+        return obj.payment_mode.payment_method.name
 
     def get_payment_mode_qr_image(self, obj):
         if not obj.payment_mode or not obj.payment_mode.qr_image:
@@ -418,7 +456,9 @@ class WithdrawSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_payment_mode_name(self, obj):
-        return obj.payment_mode.name if obj.payment_mode else None
+        if not obj.payment_mode or not obj.payment_mode.payment_method_id:
+            return None
+        return obj.payment_mode.payment_method.name
 
     def get_payment_mode_qr_image(self, obj):
         if not obj.payment_mode or not obj.payment_mode.qr_image:
@@ -493,7 +533,7 @@ class GameProviderSerializer(serializers.ModelSerializer):
         ]
 
     def get_single_game_id(self, obj):
-        qs = Game.objects.filter(provider=obj, is_active=True)
+        qs = Game.objects.filter(provider=obj, is_active=True, is_coming_soon=False)
         count = qs.count()
         if count == 1:
             return qs.values_list('id', flat=True).first()
@@ -519,7 +559,7 @@ class GameListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Game
         fields = [
-            'id', 'name', 'game_uid', 'image', 'image_url', 'min_bet', 'max_bet', 'is_active',
+            'id', 'name', 'game_uid', 'image', 'image_url', 'coming_soon_image', 'min_bet', 'max_bet', 'is_active',
             'category', 'category_name', 'provider', 'provider_name', 'provider_code',
             'is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description',
             'is_top_game', 'is_popular_game', 'is_lobby', 'created_at',
@@ -533,7 +573,7 @@ class GameDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Game
         fields = [
-            'id', 'name', 'game_uid', 'image', 'image_url', 'min_bet', 'max_bet', 'is_active',
+            'id', 'name', 'game_uid', 'image', 'image_url', 'coming_soon_image', 'min_bet', 'max_bet', 'is_active',
             'category', 'provider',
             'is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description',
             'is_top_game', 'is_popular_game', 'is_lobby', 'created_at', 'updated_at',
@@ -541,12 +581,12 @@ class GameDetailSerializer(serializers.ModelSerializer):
 
 
 class ComingSoonGameSerializer(serializers.ModelSerializer):
-    """For public coming-soon-games list: id, name, image, image_url, coming_soon_launch_date, coming_soon_description."""
+    """For public coming-soon-games list: id, name, image, image_url, coming_soon_image, coming_soon_launch_date, coming_soon_description."""
 
     class Meta:
         model = Game
         fields = [
-            'id', 'name', 'image', 'image_url',
+            'id', 'name', 'image', 'image_url', 'coming_soon_image',
             'coming_soon_launch_date', 'coming_soon_description',
         ]
 

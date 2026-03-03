@@ -21,7 +21,7 @@ def payment_mode_verification_list(request):
     if err:
         return err
     status_filter = request.query_params.get('status')
-    qs = _qs(request).select_related('user', 'action_by').order_by('-created_at')
+    qs = _qs(request).select_related('user', 'action_by', 'payment_method').order_by('-created_at')
     if status_filter == 'all':
         pass
     elif status_filter:

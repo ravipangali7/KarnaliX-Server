@@ -247,19 +247,21 @@ class User(AbstractUser):
 # --- 3. PaymentMode ---
 
 class PaymentMode(models.Model):
+    """User's payment mode: links to PaymentMethod (template) and stores method-specific details in JSON."""
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='payment_modes'
     )
-    name = models.CharField(max_length=255)
-    type = models.CharField(max_length=20, choices=PaymentModeType.choices)
-    wallet_phone = models.CharField(max_length=50, blank=True)
+    payment_method = models.ForeignKey(
+        'PaymentMethod',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='payment_modes'
+    )
     qr_image = models.ImageField(upload_to='payment_qr/', blank=True, null=True)
-    bank_name = models.CharField(max_length=255, blank=True)
-    bank_branch = models.CharField(max_length=255, blank=True)
-    bank_account_no = models.CharField(max_length=100, blank=True)
-    bank_account_holder_name = models.CharField(max_length=255, blank=True)
+    details = models.JSONField(default=dict, blank=True)
     status = models.CharField(
         max_length=20,
         choices=PaymentModeStatus.choices,
@@ -282,7 +284,9 @@ class PaymentMode(models.Model):
         verbose_name_plural = 'Payment Modes'
 
     def __str__(self):
-        return f"{self.name} ({self.get_type_display()})"
+        if self.payment_method_id:
+            return f"{self.payment_method.name} (user={self.user_id})"
+        return f"PaymentMode #{self.pk}"
 
 
 # --- 4. Deposit ---
@@ -506,6 +510,7 @@ class Game(models.Model):
     game_uid = models.CharField(max_length=255)
     image = models.ImageField(upload_to='games/', blank=True, null=True)
     image_url = models.URLField(blank=True, null=True)
+    coming_soon_image = models.ImageField(upload_to='games/', blank=True, null=True)
     min_bet = models.DecimalField(max_digits=16, decimal_places=2, default=default_decimal_zero)
     max_bet = models.DecimalField(max_digits=16, decimal_places=2, default=default_decimal_zero)
     is_active = models.BooleanField(default=True)

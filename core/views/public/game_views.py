@@ -44,9 +44,9 @@ def provider_detail(request, pk):
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
     provider_data = GameProviderSerializer(obj).data
-    games_count = Game.objects.filter(provider_id=pk, is_active=True).count()
+    games_count = Game.objects.filter(provider_id=pk, is_active=True, is_coming_soon=False).count()
     categories_qs = (
-        Game.objects.filter(provider_id=pk, is_active=True)
+        Game.objects.filter(provider_id=pk, is_active=True, is_coming_soon=False)
         .values_list('category_id', 'category__name', 'category__icon', 'category__svg')
         .distinct()
     )
@@ -98,13 +98,13 @@ def game_list(request):
         id_list = [int(i) for i in ids_param.split(',') if i.strip().isdigit()]
         games_by_id = {
             g.id: g
-            for g in Game.objects.filter(is_active=True, id__in=id_list).select_related('category', 'provider')
+            for g in Game.objects.filter(is_active=True, is_coming_soon=False, id__in=id_list).select_related('category', 'provider')
         }
         ordered = [games_by_id[i] for i in id_list if i in games_by_id]
         serializer = GameListSerializer(ordered, many=True)
         return Response({'count': len(ordered), 'next': None, 'previous': None, 'results': serializer.data})
 
-    qs = Game.objects.filter(is_active=True).select_related('category', 'provider').order_by('id')
+    qs = Game.objects.filter(is_active=True, is_coming_soon=False).select_related('category', 'provider').order_by('id')
     category_id = request.query_params.get('category_id') or request.query_params.get('category')
     if category_id:
         qs = qs.filter(category_id=category_id)

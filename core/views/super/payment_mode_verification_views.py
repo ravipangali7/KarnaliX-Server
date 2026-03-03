@@ -22,7 +22,7 @@ def payment_mode_verification_list(request):
     if err:
         return err
     status_filter = request.query_params.get('status')
-    qs = _qs(request).select_related('user', 'action_by').order_by('-created_at')
+    qs = _qs(request).select_related('user', 'action_by', 'payment_method').order_by('-created_at')
     if status_filter and status_filter != 'all':
         qs = qs.filter(status=status_filter)
     return Response(PaymentModeSerializer(qs, many=True, context={'request': request}).data)
