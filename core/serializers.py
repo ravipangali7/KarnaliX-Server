@@ -33,9 +33,19 @@ from .models import (
 
 
 # --- Auth ---
+VALID_COUNTRY_CODES = ('977', '91')
+
+
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
+    country_code = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_country_code(self, value):
+        v = (value or '').strip()
+        if v and v not in VALID_COUNTRY_CODES:
+            raise serializers.ValidationError('Country code must be 977 or 91.')
+        return v
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -45,6 +55,13 @@ class RegisterSerializer(serializers.Serializer):
     name = serializers.CharField()
     password = serializers.CharField(write_only=True, min_length=6)
     referral_code = serializers.CharField(required=False, allow_blank=True)
+    country_code = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_country_code(self, value):
+        v = (value or '').strip()
+        if v and v not in VALID_COUNTRY_CODES:
+            raise serializers.ValidationError('Country code must be 977 or 91.')
+        return v
 
 
 # --- User ---
@@ -212,7 +229,7 @@ class MeSerializer(serializers.ModelSerializer):
             'id', 'username', 'name', 'role', 'role_display',
             'main_balance', 'bonus_balance', 'pl_balance', 'exposure_balance', 'exposure_limit',
             'super_balance', 'master_balance', 'player_balance', 'total_balance',
-            'parent', 'whatsapp_number',
+            'parent', 'whatsapp_number', 'country_code',
         ]
 
     def get_super_balance(self, obj):

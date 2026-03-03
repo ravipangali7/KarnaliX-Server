@@ -56,6 +56,10 @@ def login(request):
             status=status.HTTP_403_FORBIDDEN,
         )
     create_activity_log(user, ActivityAction.LOGIN, request=request)
+    country_code = (ser.validated_data.get('country_code') or '').strip()
+    if country_code in ('977', '91'):
+        user.country_code = country_code
+        user.save(update_fields=['country_code'])
     token, _ = Token.objects.get_or_create(user=user)
     serializer = MeSerializer(user)
     return Response({
@@ -103,6 +107,9 @@ def register(request):
         username = f"user_{normalized_phone}"
     name = (data.get('name') or '').strip() or username
     password = data['password']
+    country_code = (data.get('country_code') or '').strip()
+    if country_code not in ('977', '91'):
+        country_code = ''
 
     user = User(
         username=username,
@@ -111,6 +118,7 @@ def register(request):
         phone=normalized_phone,
         email='',
         whatsapp_number='',
+        country_code=country_code,
         parent=parent,
         referred_by=referred_by,
     )
