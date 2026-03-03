@@ -3,8 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from core.permissions import require_role
-from core.models import UserRole, Deposit, Withdraw, BonusRequest, Transaction, GameLog, PaymentMode
-from core.serializers import DepositSerializer, WithdrawSerializer, BonusRequestSerializer, TransactionSerializer, GameLogSerializer, PaymentModeSerializer
+from core.models import User, UserRole, Deposit, Withdraw, BonusRequest, Transaction, GameLog, PaymentMode
+from core.serializers import DepositSerializer, WithdrawSerializer, BonusRequestSerializer, TransactionSerializer, GameLogSerializer, PaymentModeSerializer, ReferralSerializer
 
 
 def _get_related_transaction(game_log):
@@ -60,6 +60,30 @@ def game_log_detail(request, pk):
         'game_log': GameLogSerializer(log).data,
         'transaction': TransactionSerializer(tx).data if tx else None,
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def referral_list(request):
+    """Return users referred by the current player (referred_by=request.user)."""
+    err = require_role(request, [UserRole.PLAYER])
+    if err:
+        return err
+    qs = User.objects.filter(referred_by=request.user).order_by('-created_at')
+    return Response(ReferralSerializer(qs, many=True).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def referral_detail(request, pk):
+    """Return one referred user only if they were referred by the current player."""
+    err = require_role(request, [UserRole.PLAYER])
+    if err:
+        return err
+    user = User.objects.filter(pk=pk, referred_by=request.user).first()
+    if not user:
+        return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    return Response(ReferralSerializer(user).data)
 
 
 @api_view(['GET'])

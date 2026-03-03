@@ -16,6 +16,8 @@ urlpatterns = [
     path('transactions/', player_views.transaction_list),
     path('game-log/', player_views.game_log_list),
     path('game-log/<int:pk>/', player_views.game_log_detail),
+    path('referrals/', player_views.referral_list),
+    path('referrals/<int:pk>/', player_views.referral_detail),
     path('deposit-payment-modes/', player_views.deposit_payment_modes),
     path('payment-modes/', player_views.payment_mode_list_create),
     path('payment-modes/<int:pk>/', player_views.payment_mode_detail),

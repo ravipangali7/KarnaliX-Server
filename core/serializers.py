@@ -62,6 +62,15 @@ class UserMinimalSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ReferralSerializer(serializers.ModelSerializer):
+    """Safe fields for referred-user list/detail (no balance, phone, etc.)."""
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'name', 'created_at']
+        read_only_fields = fields
+
+
 class UserListSerializer(serializers.ModelSerializer):
     """List with aggregated balances for super/master (masters_balance, users_balance, etc.)."""
     role_display = serializers.CharField(source='get_role_display', read_only=True)
