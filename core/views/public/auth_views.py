@@ -1,6 +1,9 @@
 """
-Public auth: login, register. Authenticated: me (current user + balances).
+Public auth: login, register, Google OAuth. Authenticated: me (current user + balances).
 """
+import re
+import requests
+from django.conf import settings as django_settings
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
@@ -18,6 +21,9 @@ from core.serializers import (
 from core.services.bonus_service import apply_welcome_bonus, apply_referral_bonus
 from core.services.activity_log_service import create_activity_log
 from core.views.public.signup_views import normalize_phone
+
+# Username for Google signup: alphanumeric and underscore only, 3–30 chars
+USERNAME_REGEX = re.compile(r'^[a-zA-Z0-9_]{3,30}$')
 
 
 def get_default_master():
@@ -131,3 +137,140 @@ def me(request):
     """GET current user and header balances."""
     serializer = MeSerializer(request.user)
     return Response(serializer.data)
+
+
+def _verify_google_id_token(id_token):
+    """
+    Verify Google id_token via tokeninfo endpoint. Returns payload dict with sub, email, name
+    or None if invalid. Validates audience if GOOGLE_CLIENT_ID is set.
+    """
+    if not id_token or not id_token.strip():
+        return None
+    client_id = getattr(django_settings, 'GOOGLE_CLIENT_ID', None) or ''
+    try:
+        r = requests.get(
+            'https://oauth2.googleapis.com/tokeninfo',
+            params={'id_token': id_token.strip()},
+            timeout=10,
+        )
+        r.raise_for_status()
+        data = r.json()
+        sub = data.get('sub')
+        if not sub:
+            return None
+        if client_id and data.get('aud') != client_id:
+            return None
+        email = (data.get('email') or '').strip()
+        name = (data.get('name') or '').strip()
+        if not name and (data.get('given_name') or data.get('family_name')):
+            name = ' '.join(filter(None, [data.get('given_name', '').strip(), data.get('family_name', '').strip()]))
+        return {'sub': sub, 'email': email, 'name': name}
+    except Exception:
+        return None
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def google_login(request):
+    """
+    POST { id_token }.
+    If user exists for this Google account -> { token, user }.
+    If new -> { needs_username: true, email, name } (no user created yet).
+    """
+    if not getattr(django_settings, 'GOOGLE_CLIENT_ID', None):
+        return Response(
+            {'detail': 'Google login is not configured.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    id_token = (request.data.get('id_token') or '').strip()
+    if not id_token:
+        return Response({'detail': 'id_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    payload = _verify_google_id_token(id_token)
+    if not payload:
+        return Response(
+            {'detail': 'Invalid or expired Google token. Please try again.'},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    user = User.objects.filter(google_id=payload['sub']).first()
+    if user:
+        if not user.is_active:
+            return Response(
+                {'detail': 'User account is disabled.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        create_activity_log(user, ActivityAction.LOGIN, request=request)
+        token, _ = Token.objects.get_or_create(user=user)
+        serializer = MeSerializer(user)
+        return Response({'token': token.key, 'user': serializer.data})
+    return Response({
+        'needs_username': True,
+        'email': payload['email'],
+        'name': payload['name'],
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def google_complete(request):
+    """
+    POST { id_token, username }. Creates user for new Google signup after username is provided.
+    Returns { token, user }.
+    """
+    if not getattr(django_settings, 'GOOGLE_CLIENT_ID', None):
+        return Response(
+            {'detail': 'Google login is not configured.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    id_token = (request.data.get('id_token') or '').strip()
+    username = (request.data.get('username') or '').strip()
+    if not id_token:
+        return Response({'detail': 'id_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not username:
+        return Response({'detail': 'username is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not USERNAME_REGEX.match(username):
+        return Response(
+            {'detail': 'Username must be 3–30 characters, letters, numbers and underscores only.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if User.objects.filter(username__iexact=username).exists():
+        return Response({'detail': 'This username is already taken.'}, status=status.HTTP_400_BAD_REQUEST)
+    payload = _verify_google_id_token(id_token)
+    if not payload:
+        return Response(
+            {'detail': 'Invalid or expired Google token. Please try again.'},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    if User.objects.filter(google_id=payload['sub']).exists():
+        return Response(
+            {'detail': 'An account for this Google account already exists. Please log in.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    parent = get_default_master()
+    if not parent:
+        return Response(
+            {'detail': 'No default master configured. Contact support.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    name = (payload.get('name') or '').strip() or username
+    email = (payload.get('email') or '').strip()
+    user = User(
+        username=username,
+        role=UserRole.PLAYER,
+        name=name,
+        email=email,
+        phone='',
+        whatsapp_number='',
+        google_id=payload['sub'],
+        parent=parent,
+        referred_by=None,
+    )
+    user.set_unusable_password()
+    user.save()
+    applied_welcome, _ = apply_welcome_bonus(user)
+    token = Token.objects.create(user=user)
+    serializer = MeSerializer(user)
+    return Response({
+        'token': token.key,
+        'user': serializer.data,
+        'welcome_bonus_applied': applied_welcome,
+    }, status=status.HTTP_201_CREATED)

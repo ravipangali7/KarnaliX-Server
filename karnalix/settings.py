@@ -192,6 +192,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 GAME_PROVIDER_API_SECRET = os.environ.get('GAME_PROVIDER_API_SECRET', '4d45bba519ac2d39d1618f57120b84b7')
 SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'https://kingxclub.com')
 
+# Google OAuth (Login with Google). Set GOOGLE_CLIENT_ID in env for id_token verification.
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
