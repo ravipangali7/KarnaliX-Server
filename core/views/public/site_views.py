@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
-from core.models import SiteSetting, CMSPage, Testimonial, SliderSlide, LiveBettingSection, Popup, PaymentMethod
+from core.models import SiteSetting, CMSPage, Testimonial, SliderSlide, LiveBettingSection, Popup, PaymentMethod, Country
 from core.serializers import SiteSettingSerializer, CMSPageSerializer, TestimonialSerializer, SliderSlideSerializer, LiveBettingSectionSerializer, PopupSerializer, PaymentMethodSerializer
 
 
@@ -99,3 +99,15 @@ def popup_list(request):
     qs = Popup.objects.filter(is_active=True).order_by('order', 'id')
     serializer = PopupSerializer(qs, many=True, context={'request': request})
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def countries_list(request):
+    """GET active countries for register/login country code dropdown (is_active=True, ordered by name)."""
+    qs = Country.objects.filter(is_active=True).order_by('name')
+    data = [
+        {'id': c.id, 'name': c.name, 'country_code': c.country_code, 'currency_symbol': c.currency_symbol}
+        for c in qs
+    ]
+    return Response(data)
