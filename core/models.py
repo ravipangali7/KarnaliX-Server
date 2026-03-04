@@ -107,6 +107,26 @@ def default_decimal_zero():
     return Decimal('0.00')
 
 
+# --- 0. Country (for currency by country_code) ---
+
+class Country(models.Model):
+    """Country with country_code and currency_symbol for display by user country."""
+    name = models.CharField(max_length=100)
+    country_code = models.CharField(max_length=10, unique=True, db_index=True)
+    currency_symbol = models.CharField(max_length=10, default='₹')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Country'
+        verbose_name_plural = 'Countries'
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} (+{self.country_code})"
+
+
 # --- 1. SuperSetting ---
 
 class SuperSetting(models.Model):

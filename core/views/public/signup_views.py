@@ -11,8 +11,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
-from core.models import User, SignupOTP, SignupSession, SuperSetting
+from core.models import User, SignupOTP, SignupSession
 from core.services.sms_service import send_sms
+from core.services.whatsapp_service import send_whatsapp_otp
 
 
 def normalize_phone(phone: str) -> str:
@@ -48,10 +49,13 @@ def signup_check_phone(request):
 @permission_classes([AllowAny])
 def signup_send_otp(request):
     """
-    POST { "phone": "..." }.
-    Rate-limited. Create SignupOTP, send SMS, return { "detail": "OTP sent." }.
+    POST { "phone": "...", "channel": "sms" | "whatsapp" }.
+    channel defaults to "sms". Rate-limited. Create SignupOTP, send via chosen channel, return { "detail": "OTP sent." }.
     """
     phone = (request.data.get("phone") or "").strip()
+    channel = (request.data.get("channel") or "sms").strip().lower()
+    if channel not in ("sms", "whatsapp"):
+        channel = "sms"
     normalized = normalize_phone(phone)
     if not normalized or len(normalized) < 10:
         return Response({"detail": "Invalid phone number."}, status=status.HTTP_400_BAD_REQUEST)
@@ -72,9 +76,14 @@ def signup_send_otp(request):
     SignupOTP.objects.create(phone=normalized, otp=otp, expires_at=expires_at)
 
     text = f"Your KarnaliX verification code: {otp}"
-    ok, msg = send_sms(normalized, text)
+    if channel == "whatsapp":
+        ok, msg = send_whatsapp_otp(normalized, text)
+    else:
+        ok, msg = send_sms(normalized, text)
     if not ok:
-        return Response({"detail": msg or "Failed to send SMS."}, status=status.HTTP_502_BAD_GATEWAY)
+        if channel == "whatsapp" and "not configured" in (msg or "").lower():
+            return Response({"detail": msg or "WhatsApp OTP not configured. Try SMS."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({"detail": msg or "Failed to send OTP."}, status=status.HTTP_502_BAD_GATEWAY)
     return Response({"detail": "OTP sent."})
 
 

@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth import get_user_model
 
 from .models import (
+    Country,
     SuperSetting,
     User,
     PaymentMode,
@@ -101,6 +102,14 @@ class CustomUserAdmin(BaseUserAdmin):
         ('Security', {'fields': ('pin',)}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
     )
+
+
+@admin.register(Country)
+class CountryAdmin(admin.ModelAdmin):
+    list_display = ("name", "country_code", "currency_symbol", "is_active", "updated_at")
+    list_filter = ("is_active",)
+    search_fields = ("name", "country_code")
+    ordering = ("name",)
 
 
 # --- Singleton-style: only one instance ---

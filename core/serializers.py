@@ -5,6 +5,7 @@ import json
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import (
+    Country,
     User,
     UserRole,
     SuperSetting,
@@ -223,6 +224,7 @@ class MeSerializer(serializers.ModelSerializer):
     master_balance = serializers.SerializerMethodField()
     player_balance = serializers.SerializerMethodField()
     total_balance = serializers.SerializerMethodField()
+    currency_symbol = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -230,8 +232,15 @@ class MeSerializer(serializers.ModelSerializer):
             'id', 'username', 'name', 'role', 'role_display',
             'main_balance', 'bonus_balance', 'pl_balance', 'exposure_balance', 'exposure_limit',
             'super_balance', 'master_balance', 'player_balance', 'total_balance',
-            'parent', 'whatsapp_number', 'country_code',
+            'parent', 'whatsapp_number', 'country_code', 'currency_symbol',
         ]
+
+    def get_currency_symbol(self, obj):
+        code = (obj.country_code or '').strip()
+        if not code:
+            return '₹'
+        sym = Country.objects.filter(country_code=code, is_active=True).values_list('currency_symbol', flat=True).first()
+        return sym or '₹'
 
     def get_super_balance(self, obj):
         if obj.role == UserRole.POWERHOUSE:
