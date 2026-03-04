@@ -18,7 +18,7 @@ from core.serializers import (
     RegisterSerializer,
     MeSerializer,
 )
-from core.services.bonus_service import apply_welcome_bonus, apply_referral_bonus
+from core.services.bonus_service import apply_referral_bonus
 from core.services.activity_log_service import create_activity_log
 from core.views.public.signup_views import normalize_phone
 
@@ -125,7 +125,6 @@ def register(request):
     user.set_password(password)
     user.save()
 
-    applied_welcome, _ = apply_welcome_bonus(user)
     if user.referred_by_id:
         apply_referral_bonus(user.referred_by, user)
 
@@ -135,7 +134,6 @@ def register(request):
     return Response({
         'token': token.key,
         'user': serializer.data,
-        'welcome_bonus_applied': applied_welcome,
     }, status=status.HTTP_201_CREATED)
 
 
@@ -221,7 +219,7 @@ def google_login(request):
 @permission_classes([AllowAny])
 def google_complete(request):
     """
-    POST { id_token, username }. Creates user for new Google signup after username is provided.
+    POST { id_token, username, password }. Creates user for new Google signup after username and password are provided.
     Returns { token, user }.
     """
     if not getattr(django_settings, 'GOOGLE_CLIENT_ID', None):
@@ -231,10 +229,18 @@ def google_complete(request):
         )
     id_token = (request.data.get('id_token') or '').strip()
     username = (request.data.get('username') or '').strip()
+    password = (request.data.get('password') or '').strip()
     if not id_token:
         return Response({'detail': 'id_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
     if not username:
         return Response({'detail': 'username is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not password:
+        return Response({'detail': 'password is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if len(password) < 6:
+        return Response(
+            {'detail': 'Password must be at least 6 characters.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     if not USERNAME_REGEX.match(username):
         return Response(
             {'detail': 'Username must be 3–30 characters, letters, numbers and underscores only.'},
@@ -272,13 +278,11 @@ def google_complete(request):
         parent=parent,
         referred_by=None,
     )
-    user.set_unusable_password()
+    user.set_password(password)
     user.save()
-    applied_welcome, _ = apply_welcome_bonus(user)
     token = Token.objects.create(user=user)
     serializer = MeSerializer(user)
     return Response({
         'token': token.key,
         'user': serializer.data,
-        'welcome_bonus_applied': applied_welcome,
     }, status=status.HTTP_201_CREATED)
