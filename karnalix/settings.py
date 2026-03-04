@@ -194,7 +194,7 @@ SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'https://luckyuser365.com')
 # SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'https://kingxclub.com')
 
 # Google OAuth (Login with Google). Set GOOGLE_CLIENT_ID in env for id_token verification.
-GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '').strip()
+GOOGLE_CLIENT_ID = '386184793784-njlhdvqjh0698tnc5tffi79m5pjqpig4.apps.googleusercontent.com'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
