@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from core.models import User, PasswordResetOTP, SiteSetting
+from core.services.email_service import send_otp_email
 from core.services.sms_service import send_sms
 
 
@@ -117,7 +118,10 @@ def forgot_password_send_otp(request):
         ok, msg = send_sms(user.phone, f"Your KarnaliX reset code: {otp}")
         if not ok:
             return Response({"detail": msg or "Failed to send SMS."}, status=status.HTTP_502_BAD_GATEWAY)
-    # email sending not implemented; would need an email backend
+    if channel == "email" and user.email:
+        ok, msg = send_otp_email(user.email, otp)
+        if not ok:
+            return Response({"detail": msg or "Failed to send email."}, status=status.HTTP_502_BAD_GATEWAY)
 
     return Response({"detail": "OTP sent."})
 

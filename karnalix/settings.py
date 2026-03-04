@@ -196,6 +196,18 @@ SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'https://luckyuser365.com')
 # Google OAuth (Login with Google). Set GOOGLE_CLIENT_ID in env for id_token verification.
 GOOGLE_CLIENT_ID = '386184793784-njlhdvqjh0698tnc5tffi79m5pjqpig4.apps.googleusercontent.com'
 
+# Email (OTP, etc.). All credentials from env. If EMAIL_HOST is empty, use console backend so dev runs without config.
+EMAIL_HOST = (os.environ.get('EMAIL_HOST') or '').strip()
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587') or '587')
+EMAIL_USE_TLS = (os.environ.get('EMAIL_USE_TLS', 'true') or 'true').lower() in ('true', '1', 'yes')
+EMAIL_HOST_USER = (os.environ.get('EMAIL_HOST_USER') or '').strip()
+EMAIL_HOST_PASSWORD = (os.environ.get('EMAIL_HOST_PASSWORD') or '').strip()
+DEFAULT_FROM_EMAIL = (os.environ.get('DEFAULT_FROM_EMAIL') or '').strip()
+if EMAIL_HOST:
+    EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
