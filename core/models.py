@@ -732,7 +732,7 @@ class Message(models.Model):
         on_delete=models.CASCADE,
         related_name='messages_received'
     )
-    message = models.TextField()
+    message = models.TextField(blank=True)
     file = models.FileField(upload_to='message_files/', blank=True, null=True)
     image = models.ImageField(upload_to='message_images/', blank=True, null=True)
     is_read = models.BooleanField(default=False)
