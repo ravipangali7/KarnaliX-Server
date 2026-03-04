@@ -31,10 +31,9 @@ def profile_update(request):
 def change_password(request):
     err = require_role(request, [UserRole.PLAYER])
     if err: return err
-    old = request.data.get('old_password')
     new = request.data.get('new_password')
-    if not old or not new: return Response({'detail': 'Required.'}, status=400)
-    if not request.user.check_password(old): return Response({'detail': 'Invalid password.'}, status=400)
+    if not new: return Response({'detail': 'New password is required.'}, status=400)
+    if len(new) < 6: return Response({'detail': 'Password must be at least 6 characters.'}, status=400)
     request.user.set_password(new)
     request.user.save()
     create_activity_log(request.user, ActivityAction.PASSWORD_CHANGE, request=request)
