@@ -1,5 +1,6 @@
 from django.urls import path
 from core.views.powerhouse import (
+    country_views,
     dashboard_views,
     user_views,
     deposit_views,
@@ -115,4 +116,6 @@ urlpatterns = [
     path('change-password/', me_views.change_password),
     path('payment-methods/', payment_method_views.payment_method_list_create),
     path('payment-methods/<int:pk>/', payment_method_views.payment_method_detail),
+    path('countries/', country_views.country_list_create),
+    path('countries/<int:pk>/', country_views.country_detail),
 ]

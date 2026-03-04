@@ -283,6 +283,13 @@ class SuperSettingSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+# --- Country (powerhouse CRUD) ---
+class CountrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Country
+        fields = ['id', 'name', 'country_code', 'currency_symbol', 'is_active', 'created_at', 'updated_at']
+
+
 # --- PaymentMethod ---
 class PaymentMethodSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField(read_only=True)
