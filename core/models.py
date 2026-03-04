@@ -880,6 +880,26 @@ class Popup(models.Model):
         return self.title[:50] or f"Popup {self.pk}"
 
 
+# --- 16b3. Promotion (promotional offers / campaigns) ---
+
+class Promotion(models.Model):
+    title = models.CharField(max_length=500)
+    image = models.ImageField(upload_to='promotions/', blank=True, null=True)
+    description = models.TextField(blank=True)  # HTML from rich-text editor
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name = 'Promotion'
+        verbose_name_plural = 'Promotions'
+
+    def __str__(self):
+        return self.title[:50] or f"Promotion {self.pk}"
+
+
 # --- 16c. LiveBettingSection (second home live betting block) ---
 
 class LiveBettingSection(models.Model):

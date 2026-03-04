@@ -11,6 +11,7 @@ from .models import (
     SiteSetting,
     SliderSlide,
     Popup,
+    Promotion,
     LiveBettingSection,
     LiveBettingEvent,
     PaymentMode,
@@ -335,6 +336,23 @@ class PopupSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.image_file.url)
             return obj.image_file.url
         return (obj.image or '').strip() or None
+
+
+# --- Promotion ---
+class PromotionSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Promotion
+        fields = ['id', 'title', 'image', 'image_url', 'description', 'is_active', 'order', 'created_at', 'updated_at']
+
+    def get_image_url(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
 
 
 # --- LiveBetting ---

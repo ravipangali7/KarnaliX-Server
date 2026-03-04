@@ -21,6 +21,7 @@ from .models import (
     SiteSetting,
     SliderSlide,
     Popup,
+    Promotion,
     LiveBettingSection,
     LiveBettingEvent,
     SignupOTP,
@@ -378,6 +379,15 @@ class PopupAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'is_active', 'order', 'updated_at')
     list_editable = ('is_active', 'order')
     ordering = ('order', 'id')
+
+
+@admin.register(Promotion)
+class PromotionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'title', 'is_active', 'order', 'updated_at')
+    list_editable = ('is_active', 'order')
+    list_filter = ('is_active',)
+    ordering = ('order', 'id')
+    readonly_fields = ('created_at', 'updated_at')
 
 
 class LiveBettingEventInline(admin.TabularInline):
