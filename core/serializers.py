@@ -656,6 +656,7 @@ class ComingSoonEnrollmentSerializer(serializers.ModelSerializer):
 class GameLogSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     game_name = serializers.CharField(source='game.name', read_only=True)
+    category_name = serializers.CharField(source='game.category.name', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     wallet_display = serializers.CharField(source='get_wallet_display', read_only=True)
 

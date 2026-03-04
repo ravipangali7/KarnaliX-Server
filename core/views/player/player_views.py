@@ -43,7 +43,7 @@ def transaction_list(request):
 def game_log_list(request):
     err = require_role(request, [UserRole.PLAYER])
     if err: return err
-    return Response(GameLogSerializer(GameLog.objects.filter(user=request.user).select_related('game', 'provider').order_by('-created_at')[:200], many=True).data)
+    return Response(GameLogSerializer(GameLog.objects.filter(user=request.user).select_related('game', 'game__category', 'provider').order_by('-created_at')[:200], many=True).data)
 
 
 @api_view(['GET'])
@@ -52,7 +52,7 @@ def game_log_detail(request, pk):
     err = require_role(request, [UserRole.PLAYER])
     if err:
         return err
-    log = GameLog.objects.filter(user=request.user, pk=pk).select_related('game', 'provider', 'user').first()
+    log = GameLog.objects.filter(user=request.user, pk=pk).select_related('game', 'game__category', 'provider', 'user').first()
     if not log:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
     tx = _get_related_transaction(log)
