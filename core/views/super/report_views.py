@@ -4,7 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Sum
-from core.permissions import require_role, get_masters_queryset, get_players_queryset
+from core.permissions import require_role, get_masters_queryset, get_players_queryset, get_supers_queryset
 from core.models import Deposit, Withdraw, UserRole
 
 
@@ -86,22 +86,14 @@ def super_master_dw_list(request):
     return Response(results)
 
 
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def super_dw_state_list(request):
-    """One row: logged-in super/powerhouse's own D/W data only. date_from, date_to."""
-    err = require_role(request, [UserRole.SUPER, UserRole.POWERHOUSE])
-    if err:
-        return err
-    date_from = request.query_params.get("date_from", "").strip()
-    date_to = request.query_params.get("date_to", "").strip()
-    user = request.user
+def _super_dw_state_row(super_user, date_from, date_to):
+    """Build one Super D/W State row for a given super user."""
     dep_qs = _date_filter(
-        Deposit.objects.filter(user=user, status="approved"),
+        Deposit.objects.filter(user=super_user, status="approved"),
         date_from, date_to
     )
     wd_qs = _date_filter(
-        Withdraw.objects.filter(user=user, status="approved"),
+        Withdraw.objects.filter(user=super_user, status="approved"),
         date_from, date_to
     )
     no_dep = dep_qs.count()
@@ -110,14 +102,32 @@ def super_dw_state_list(request):
     total_wd = wd_qs.aggregate(s=Sum("amount"))["s"] or Decimal("0")
     net_d_w = total_dep - total_wd
     total_d_w = total_dep + total_wd
-    results = [{
-        "username": user.username,
-        "user_id": user.id,
+    return {
+        "username": super_user.username,
+        "user_id": super_user.id,
         "no_of_deposit": no_dep,
         "total_deposit": str(total_dep),
         "no_of_withdrawal": no_wd,
         "total_withdrawal": str(total_wd),
         "net_d_w": str(net_d_w),
         "total_d_w": str(total_d_w),
-    }]
+    }
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def super_dw_state_list(request):
+    """Super: one row (logged-in super's own D/W). Powerhouse: one row per super (all supers' D/W state). date_from, date_to."""
+    err = require_role(request, [UserRole.SUPER, UserRole.POWERHOUSE])
+    if err:
+        return err
+    date_from = request.query_params.get("date_from", "").strip()
+    date_to = request.query_params.get("date_to", "").strip()
+    user = request.user
+    role_value = getattr(UserRole.POWERHOUSE, "value", "powerhouse")
+    if getattr(user, "role", None) == UserRole.POWERHOUSE or getattr(user, "role", None) == role_value:
+        supers = get_supers_queryset(user)
+        results = [_super_dw_state_row(super_user, date_from, date_to) for super_user in supers]
+    else:
+        results = [_super_dw_state_row(user, date_from, date_to)]
     return Response(results)
