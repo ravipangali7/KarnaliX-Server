@@ -15,6 +15,7 @@ from core.models import (
     TransactionType,
     TransactionStatus,
 )
+from core.notification_utils import notify_player_approval
 
 
 def approve_deposit(deposit, processed_by, pin=None, use_password=False):
@@ -40,6 +41,8 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
             status=TransactionStatus.SUCCESS,
             remarks=f'Deposit #{deposit.pk} approved',
         )
+        if user.role == UserRole.PLAYER:
+            notify_player_approval(user, processed_by, f'Your deposit of ₹{amount} has been approved.')
         return True, None
     parent = user.parent
     if not parent:
@@ -74,4 +77,6 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
         from_user=parent,
         remarks=f'Deposit #{deposit.pk} approved',
     )
+    if user.role == UserRole.PLAYER:
+        notify_player_approval(user, processed_by, f'Your deposit of ₹{amount} has been approved.')
     return True, None

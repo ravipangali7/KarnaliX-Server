@@ -13,6 +13,7 @@ from core.models import (
     TransactionType,
     TransactionStatus,
 )
+from core.notification_utils import notify_player_approval
 
 
 def approve_bonus_request(bonus_request, processed_by, pin=None, use_password=False):
@@ -39,6 +40,8 @@ def approve_bonus_request(bonus_request, processed_by, pin=None, use_password=Fa
             status=TransactionStatus.SUCCESS,
             remarks=f'Bonus request #{bonus_request.pk} approved',
         )
+        if user.role == UserRole.PLAYER:
+            notify_player_approval(user, processed_by, f'Your bonus request of ₹{amount} has been approved.')
         return True, None
     parent = user.parent
     if not parent:
@@ -73,4 +76,6 @@ def approve_bonus_request(bonus_request, processed_by, pin=None, use_password=Fa
         from_user=parent,
         remarks=f'Bonus request #{bonus_request.pk} approved',
     )
+    if user.role == UserRole.PLAYER:
+        notify_player_approval(user, processed_by, f'Your bonus request of ₹{amount} has been approved.')
     return True, None

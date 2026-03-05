@@ -28,6 +28,7 @@ urlpatterns = [
     path('profile/update/', profile_views.profile_update),
     path('change-password/', profile_views.change_password),
     path('messages/', message_views.message_list),
+    path('messages/contacts/', message_views.message_contacts),
     path('messages/unread-count/', message_views.message_unread_count),
     path('messages/send/', message_views.message_create),
     path('transfer/', transfer_views.transfer),

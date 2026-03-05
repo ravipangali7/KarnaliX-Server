@@ -11,6 +11,7 @@ from core.models import (
     TransactionType,
     TransactionStatus,
 )
+from core.notification_utils import notify_player_approval
 
 
 def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
@@ -34,6 +35,8 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
             status=TransactionStatus.SUCCESS,
             remarks='Withdraw approved',
         )
+        if user.role == UserRole.PLAYER:
+            notify_player_approval(user, processed_by, f'Your withdrawal of ₹{amount} has been approved.')
         return True, None
     parent = user.parent
     if not parent:
@@ -70,4 +73,6 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
         from_user=user,
         remarks='Withdraw from ' + user.username,
     )
+    if user.role == UserRole.PLAYER:
+        notify_player_approval(user, processed_by, f'Your withdrawal of ₹{amount} has been approved.')
     return True, None
