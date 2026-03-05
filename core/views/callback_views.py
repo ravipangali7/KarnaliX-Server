@@ -119,8 +119,8 @@ def game_callback(request):
 
     try:
         mobile = _get("mobile") or _get("user_id")
-        bet = Decimal(str(_get("bet_amount", "0")))
-        win = Decimal(str(_get("win_amount", "0")))
+        callback_bet = Decimal(str(_get("bet_amount", "0")))
+        callback_win = Decimal(str(_get("win_amount", "0")))
         game_uid = (_get("game_uid") or "").strip()
         game_round = (_get("game_round") or "").strip()
         token = _get("token") or ""
@@ -151,41 +151,40 @@ def game_callback(request):
     game_uid = game_uid or "unknown"
     game = _get_or_create_game_and_provider(game_uid)
 
-    existing = GameLog.objects.filter(user=user, round=game_round).first()
-    # Use game log before/after for calculation (our data), not provider wallet_before/wallet_after
-    if existing:
-        before_balance = existing.before_balance or Decimal("0")
-        after_balance = existing.after_balance or Decimal("0")
-    else:
-        before_balance = user.main_balance or Decimal("0")
-        after_balance = wallet_after
+    # API-doc aligned: use provider wallet_before/wallet_after as single source of truth
+    result_amount = wallet_after - wallet_before
 
-    result_amount = after_balance - before_balance
     if result_amount > 0:
         win = result_amount
-        bet = Decimal("0")
         lose_amount_value = Decimal("0")
     elif result_amount < 0:
         win = Decimal("0")
-        bet = -result_amount
         lose_amount_value = -result_amount
     else:
         win = Decimal("0")
-        bet = Decimal("0")
         lose_amount_value = Decimal("0")
+
+    if callback_bet > 0:
+        bet = callback_bet
+    elif result_amount < 0:
+        bet = -result_amount
+    else:
+        bet = Decimal("0")
 
     result_win = win > 0
     log_type = GameLogType.WIN if result_win else GameLogType.LOSE
     net = result_amount
 
+    existing = GameLog.objects.filter(user=user, round=game_round).first()
     if existing:
         existing.bet_amount = bet
         existing.win_amount = win
         existing.type = log_type
         existing.lose_amount = lose_amount_value
+        existing.before_balance = wallet_before
         existing.after_balance = wallet_after
         existing.provider_raw_data = data
-        existing.save(update_fields=["bet_amount", "win_amount", "type", "lose_amount", "after_balance", "provider_raw_data", "updated_at"])
+        existing.save(update_fields=["bet_amount", "win_amount", "type", "lose_amount", "before_balance", "after_balance", "provider_raw_data", "updated_at"])
         game_log = existing
     else:
         game_log = GameLog.objects.create(
@@ -198,8 +197,8 @@ def game_callback(request):
             bet_amount=bet,
             win_amount=win,
             lose_amount=lose_amount_value,
-            before_balance=before_balance,
-            after_balance=after_balance,
+            before_balance=wallet_before,
+            after_balance=wallet_after,
             provider_raw_data=data,
         )
 
@@ -211,18 +210,19 @@ def game_callback(request):
         master.pl_balance = (master.pl_balance or Decimal("0")) - result_amount
         master.save(update_fields=["pl_balance"])
 
-    Transaction.objects.create(
-        user=user,
-        action_type=TransactionActionType.IN if net >= 0 else TransactionActionType.OUT,
-        wallet=TransactionWallet.MAIN_BALANCE,
-        transaction_type=TransactionType.PL,
-        amount=abs(net),
-        status=TransactionStatus.SUCCESS,
-        remarks=f"Game round {game_round}",
-        game_log=game_log,
-        balance_before=before_balance,
-        balance_after=after_balance,
-    )
+    if not existing:
+        Transaction.objects.create(
+            user=user,
+            action_type=TransactionActionType.IN if net >= 0 else TransactionActionType.OUT,
+            wallet=TransactionWallet.MAIN_BALANCE,
+            transaction_type=TransactionType.PL,
+            amount=abs(net),
+            status=TransactionStatus.SUCCESS,
+            remarks=f"Game round {game_round}",
+            game_log=game_log,
+            balance_before=wallet_before,
+            balance_after=wallet_after,
+        )
 
     logger.info(
         "game_callback: ok user_id=%s game_round=%s bet=%s win=%s wallet_after=%s",
