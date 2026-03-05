@@ -21,6 +21,7 @@ from core.serializers import (
 from core.services.bonus_service import apply_referral_bonus
 from core.services.activity_log_service import create_activity_log
 from core.views.public.signup_views import normalize_phone
+from core.channel_utils import broadcast_session_revoked
 
 # Username for Google signup: alphanumeric and underscore only, 3–30 chars
 USERNAME_REGEX = re.compile(r'^[a-zA-Z0-9_]{3,30}$')
@@ -60,7 +61,9 @@ def login(request):
     if country_code in ('977', '91'):
         user.country_code = country_code
         user.save(update_fields=['country_code'])
-    token, _ = Token.objects.get_or_create(user=user)
+    Token.objects.filter(user=user).delete()
+    token = Token.objects.create(user=user)
+    broadcast_session_revoked(user.id, token.key)
     serializer = MeSerializer(user)
     return Response({
         'token': token.key,
@@ -205,7 +208,9 @@ def google_login(request):
                 status=status.HTTP_403_FORBIDDEN,
             )
         create_activity_log(user, ActivityAction.LOGIN, request=request)
-        token, _ = Token.objects.get_or_create(user=user)
+        Token.objects.filter(user=user).delete()
+        token = Token.objects.create(user=user)
+        broadcast_session_revoked(user.id, token.key)
         serializer = MeSerializer(user)
         return Response({'token': token.key, 'user': serializer.data})
     return Response({
