@@ -57,7 +57,7 @@ def deposit_list(request):
     return Response(serializer.data)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def deposit_detail(request, pk):
     err = require_role(request, [UserRole.POWERHOUSE])
@@ -66,6 +66,17 @@ def deposit_detail(request, pk):
     obj = Deposit.objects.filter(pk=pk).select_related('user', 'payment_mode').first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    if request.method == 'PATCH':
+        allowed = {'remarks', 'reference_id'}
+        update_fields = []
+        for key in allowed:
+            if key in request.data:
+                val = request.data.get(key)
+                setattr(obj, key, val if val is not None else '')
+                update_fields.append(key)
+        if update_fields:
+            obj.save(update_fields=update_fields)
+        return Response(DepositSerializer(obj, context={'request': request}).data)
     return Response(DepositSerializer(obj, context={'request': request}).data)
 
 
@@ -107,6 +118,7 @@ def deposit_direct(request):
     user_id = request.data.get('user_id')
     amount_raw = request.data.get('amount')
     remarks = request.data.get('remarks', '') or ''
+    reference_id = request.data.get('reference_id', '') or ''
     if user_id is None:
         return Response({'detail': 'user_id required.'}, status=status.HTTP_400_BAD_REQUEST)
     if amount_raw is None:
@@ -140,6 +152,7 @@ def deposit_direct(request):
         user_id=user_id,
         amount=amount,
         remarks=remarks,
+        reference_id=reference_id,
         status='pending',
         payment_mode_id=payment_mode.pk if payment_mode else None,
     )

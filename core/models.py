@@ -347,6 +347,7 @@ class Deposit(models.Model):
     processed_at = models.DateTimeField(null=True, blank=True)
     screenshot = models.ImageField(upload_to='deposit_screenshots/', blank=True, null=True)
     remarks = models.TextField(blank=True)
+    reference_id = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

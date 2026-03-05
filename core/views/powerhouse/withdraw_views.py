@@ -74,7 +74,7 @@ def withdraw_list(request):
     return Response(WithdrawSerializer(qs, many=True, context={'request': request}).data)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def withdraw_detail(request, pk):
     err = require_role(request, [UserRole.POWERHOUSE])
@@ -83,6 +83,11 @@ def withdraw_detail(request, pk):
     obj = Withdraw.objects.filter(pk=pk).first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    if request.method == 'PATCH':
+        if 'remarks' in request.data:
+            obj.remarks = request.data.get('remarks') if request.data.get('remarks') is not None else ''
+            obj.save(update_fields=['remarks'])
+        return Response(WithdrawSerializer(obj, context={'request': request}).data)
     return Response(WithdrawSerializer(obj, context={'request': request}).data)
 
 

@@ -510,7 +510,7 @@ class DepositSerializer(serializers.ModelSerializer):
 class DepositCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Deposit
-        fields = ['amount', 'payment_mode', 'screenshot', 'remarks']
+        fields = ['amount', 'payment_mode', 'screenshot', 'remarks', 'reference_id']
 
 
 # --- Withdraw ---
