@@ -94,6 +94,7 @@ class ReferralSerializer(serializers.ModelSerializer):
 class UserListSerializer(serializers.ModelSerializer):
     """List with aggregated balances for super/master (masters_balance, users_balance, etc.)."""
     role_display = serializers.CharField(source='get_role_display', read_only=True)
+    parent_username = serializers.SerializerMethodField()
     masters_balance = serializers.SerializerMethodField()
     masters_pl_balance = serializers.SerializerMethodField()
     users_balance = serializers.SerializerMethodField()
@@ -105,13 +106,19 @@ class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'name', 'role', 'role_display',
+            'id', 'username', 'name', 'role', 'role_display', 'parent_username',
+            'phone', 'whatsapp_number',
             'main_balance', 'pl_balance', 'bonus_balance', 'exposure_balance', 'exposure_limit',
             'is_active', 'created_at', 'pin',
             'masters_balance', 'masters_pl_balance', 'users_balance',
             'players_count', 'masters_count',
             'total_balance', 'total_win_loss',
         ]
+
+    def get_parent_username(self, obj):
+        if obj.role == UserRole.PLAYER and obj.parent_id:
+            return obj.parent.username if obj.parent else None
+        return None
 
     def get_masters_balance(self, obj):
         if obj.role == UserRole.SUPER:

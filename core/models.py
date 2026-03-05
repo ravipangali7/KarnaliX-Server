@@ -611,8 +611,8 @@ class GameLog(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'Game Log'
-        verbose_name_plural = 'Game Logs'
+        verbose_name = 'Bet History'
+        verbose_name_plural = 'Bet History'
 
     def __str__(self):
         return f"{self.user} - {self.game} - {self.get_type_display()} ({self.created_at})"

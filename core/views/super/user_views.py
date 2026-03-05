@@ -147,6 +147,12 @@ def player_list(request):
         _win_sum=Sum('game_logs__win_amount'),
         _lose_sum=Sum('game_logs__lose_amount'),
     ).order_by('-created_at')
+    master_id = request.query_params.get('master_id', '').strip()
+    if master_id:
+        try:
+            qs = qs.filter(parent_id=int(master_id))
+        except (ValueError, TypeError):
+            pass
     search = request.query_params.get('search', '').strip()
     if search:
         qs = qs.filter(Q(username__icontains=search) | Q(name__icontains=search) | Q(phone__icontains=search))

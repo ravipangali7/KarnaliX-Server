@@ -48,6 +48,12 @@ def _user_list_response(request, role_type):
     elif is_active.lower() == 'false':
         qs = qs.filter(is_active=False)
     if role_type == 'player':
+        master_id = request.query_params.get('master_id', '').strip()
+        if master_id:
+            try:
+                qs = qs.filter(parent_id=int(master_id))
+            except (ValueError, TypeError):
+                pass
         qs = qs.annotate(
             _win_sum=Sum('game_logs__win_amount'),
             _lose_sum=Sum('game_logs__lose_amount'),
