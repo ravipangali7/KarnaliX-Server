@@ -659,10 +659,18 @@ class GameLogSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='game.category.name', read_only=True)
     type_display = serializers.CharField(source='get_type_display', read_only=True)
     wallet_display = serializers.CharField(source='get_wallet_display', read_only=True)
+    effective_bet_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = GameLog
         fields = '__all__'
+
+    def get_effective_bet_amount(self, obj):
+        if obj.bet_amount and obj.bet_amount > 0:
+            return float(obj.bet_amount)
+        if obj.type == 'lose' and obj.lose_amount and obj.lose_amount > 0:
+            return float(obj.lose_amount)
+        return None
 
 
 # --- Transaction ---
