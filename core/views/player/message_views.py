@@ -97,3 +97,31 @@ def message_contacts(request):
                 "unread_count": unread_map.get(u.id, 0),
             })
     return Response(partners)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def notification_list(request):
+    """Return unread messages for the player as notification items (sender, message preview, created_at) for the popup modal."""
+    err = require_role(request, [UserRole.PLAYER])
+    if err:
+        return err
+    qs = (
+        Message.objects.filter(receiver=request.user, is_read=False)
+        .select_related("sender")
+        .order_by("-created_at")[:50]
+    )
+    notifications = []
+    for msg in qs:
+        preview = (msg.message or "").strip()
+        if len(preview) > 100:
+            preview = preview[:97] + "..."
+        notifications.append({
+            "id": msg.id,
+            "sender_id": msg.sender_id,
+            "sender_username": msg.sender.username if msg.sender else "",
+            "sender_name": (msg.sender.name or msg.sender.username) if msg.sender else "",
+            "message": preview,
+            "created_at": msg.created_at.isoformat() if msg.created_at else None,
+        })
+    return Response(notifications)
