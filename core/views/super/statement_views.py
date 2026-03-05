@@ -15,6 +15,8 @@ def _parse_dates(request):
 
 
 def _base_qs(request):
+    if request.user.role in (UserRole.POWERHOUSE, getattr(UserRole.POWERHOUSE, "value", "powerhouse")):
+        return Transaction.objects.all().select_related("user").order_by("-created_at")
     return Transaction.objects.filter(
         Q(user__parent=request.user)
         | Q(user__parent__parent=request.user)
@@ -40,7 +42,7 @@ def _to_statement_row(tx):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def account_statement_list(request):
-    err = require_role(request, [UserRole.SUPER])
+    err = require_role(request, [UserRole.SUPER, UserRole.POWERHOUSE])
     if err:
         return err
     date_from, date_to = _parse_dates(request)
@@ -61,7 +63,7 @@ def account_statement_list(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def bonus_statement_list(request):
-    err = require_role(request, [UserRole.SUPER])
+    err = require_role(request, [UserRole.SUPER, UserRole.POWERHOUSE])
     if err:
         return err
     date_from, date_to = _parse_dates(request)

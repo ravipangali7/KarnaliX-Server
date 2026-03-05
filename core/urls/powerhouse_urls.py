@@ -27,6 +27,8 @@ from core.views.powerhouse import (
     me_views,
     payment_method_views,
 )
+from core.views.super import statement_views as super_statement_views
+from core.views.super import report_views as super_report_views
 
 urlpatterns = [
     path('dashboard/', dashboard_views.dashboard),
@@ -73,6 +75,11 @@ urlpatterns = [
     path('game-log/<int:pk>/', game_log_views.game_log_detail),
     path('transactions/', transaction_views.transaction_list),
     path('accounting-report/', accounting_views.accounting_report),
+    path('account-statement/', super_statement_views.account_statement_list),
+    path('bonus-statement/', super_statement_views.bonus_statement_list),
+    path('client-request/total-dw/', super_report_views.total_dw_list),
+    path('client-request/super-master-dw/', super_report_views.super_master_dw_list),
+    path('client-request/super-dw-state/', super_report_views.super_dw_state_list),
     path('activity/', activity_views.activity_list),
     path('categories/', game_views.category_list_create),
     path('categories/<int:pk>/', game_views.category_detail),

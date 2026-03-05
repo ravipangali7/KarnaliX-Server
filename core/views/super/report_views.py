@@ -19,8 +19,8 @@ def _date_filter(qs, date_from, date_to, date_field="created_at"):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def total_dw_list(request):
-    """Per-user deposit/withdrawal totals (super: players only). date_from, date_to."""
-    err = require_role(request, [UserRole.SUPER])
+    """Per-user deposit/withdrawal totals (super: players only; powerhouse: all players). date_from, date_to."""
+    err = require_role(request, [UserRole.SUPER, UserRole.POWERHOUSE])
     if err:
         return err
     date_from = request.query_params.get("date_from", "").strip()
@@ -53,7 +53,7 @@ def total_dw_list(request):
 @permission_classes([IsAuthenticated])
 def super_master_dw_list(request):
     """One row per master: no_of_withdrawal, withdrawal, no_of_deposit, deposit, total. date_from, date_to."""
-    err = require_role(request, [UserRole.SUPER])
+    err = require_role(request, [UserRole.SUPER, UserRole.POWERHOUSE])
     if err:
         return err
     date_from = request.query_params.get("date_from", "").strip()
@@ -89,8 +89,8 @@ def super_master_dw_list(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def super_dw_state_list(request):
-    """One row: logged-in super's own D/W data only. date_from, date_to."""
-    err = require_role(request, [UserRole.SUPER])
+    """One row: logged-in super/powerhouse's own D/W data only. date_from, date_to."""
+    err = require_role(request, [UserRole.SUPER, UserRole.POWERHOUSE])
     if err:
         return err
     date_from = request.query_params.get("date_from", "").strip()
