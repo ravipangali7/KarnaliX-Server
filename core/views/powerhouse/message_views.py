@@ -1,3 +1,4 @@
+from django.db.models import Count
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -8,8 +9,14 @@ from core.serializers import MessageSerializer, MessageCreateSerializer
 from core.channel_utils import broadcast_new_message_to_receiver
 
 
-def _user_to_contact(u):
-    return {'id': u.id, 'username': u.username, 'name': u.name or u.username, 'role': u.role}
+def _user_to_contact(u, unread_map):
+    return {
+        "id": u.id,
+        "username": u.username,
+        "name": u.name or u.username,
+        "role": u.role,
+        "unread_count": unread_map.get(u.id, 0),
+    }
 
 
 @api_view(['GET'])
@@ -67,5 +74,14 @@ def message_contacts(request):
     err = require_role(request, [UserRole.POWERHOUSE])
     if err:
         return err
-    partners = [ _user_to_contact(u) for u in User.objects.filter(parent=request.user, role=UserRole.SUPER).order_by('username') ]
+    unread_map = dict(
+        Message.objects.filter(receiver=request.user, is_read=False)
+        .values("sender_id")
+        .annotate(unread_count=Count("id"))
+        .values_list("sender_id", "unread_count")
+    )
+    partners = [
+        _user_to_contact(u, unread_map)
+        for u in User.objects.filter(parent=request.user, role=UserRole.SUPER).order_by("username")
+    ]
     return Response(partners)

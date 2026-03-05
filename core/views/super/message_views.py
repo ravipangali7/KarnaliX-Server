@@ -1,3 +1,4 @@
+from django.db.models import Count
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -60,12 +61,30 @@ def message_contacts(request):
     err = require_role(request, [UserRole.SUPER])
     if err:
         return err
+    unread_map = dict(
+        Message.objects.filter(receiver=request.user, is_read=False)
+        .values("sender_id")
+        .annotate(unread_count=Count("id"))
+        .values_list("sender_id", "unread_count")
+    )
     partners = []
     if request.user.parent_id:
         parent = User.objects.filter(pk=request.user.parent_id).first()
         if parent:
-            partners.append({'id': parent.id, 'username': parent.username, 'name': parent.name or parent.username, 'role': parent.role})
-    children = User.objects.filter(parent=request.user, role=UserRole.MASTER).order_by('username')
+            partners.append({
+                "id": parent.id,
+                "username": parent.username,
+                "name": parent.name or parent.username,
+                "role": parent.role,
+                "unread_count": unread_map.get(parent.id, 0),
+            })
+    children = User.objects.filter(parent=request.user, role=UserRole.MASTER).order_by("username")
     for u in children:
-        partners.append({'id': u.id, 'username': u.username, 'name': u.name or u.username, 'role': u.role})
+        partners.append({
+            "id": u.id,
+            "username": u.username,
+            "name": u.name or u.username,
+            "role": u.role,
+            "unread_count": unread_map.get(u.id, 0),
+        })
     return Response(partners)
