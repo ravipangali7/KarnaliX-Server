@@ -132,6 +132,19 @@ def game_callback(request):
         logger.warning("game_callback: invalid parameters, data keys=%s", list(data.keys()) if data else [])
         return JsonResponse({"error": "Invalid parameters"}, status=400)
 
+    # Derive bet/win from wallet and change when provider sends 0
+    if bet == 0:
+        if wallet_before > wallet_after:
+            bet = wallet_before - wallet_after
+            logger.info("game_callback: derived bet=%s from wallet (wallet_before - wallet_after)", bet)
+        else:
+            bet = max(Decimal("0"), win - change)
+            if bet > 0:
+                logger.info("game_callback: derived bet=%s from win - change", bet)
+    if win == 0 and change > 0:
+        win = change + bet
+        logger.info("game_callback: derived win=%s from change + bet", win)
+
     # Only validate token when we have a configured token AND the provider sent one (some providers don't echo token)
     settings = SuperSetting.get_settings()
     if settings and getattr(settings, "game_api_token", None) and settings.game_api_token and (token or "").strip():
@@ -160,9 +173,10 @@ def game_callback(request):
         existing.bet_amount = bet
         existing.win_amount = win
         existing.type = log_type
+        existing.lose_amount = bet - win if not result_win else Decimal("0")
         existing.after_balance = wallet_after
         existing.provider_raw_data = data
-        existing.save(update_fields=["bet_amount", "win_amount", "type", "after_balance", "provider_raw_data", "updated_at"])
+        existing.save(update_fields=["bet_amount", "win_amount", "type", "lose_amount", "after_balance", "provider_raw_data", "updated_at"])
         game_log = existing
     else:
         game_log = GameLog.objects.create(
