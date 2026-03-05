@@ -1,6 +1,6 @@
 """Powerhouse: Super, Master, Player CRUD."""
 import secrets
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Subquery, OuterRef, Max
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -54,9 +54,15 @@ def _user_list_response(request, role_type):
                 qs = qs.filter(parent_id=int(master_id))
             except (ValueError, TypeError):
                 pass
+        gl_max = GameLog.objects.filter(user_id=OuterRef('pk')).values('user_id').annotate(m=Max('created_at')).values('m')[:1]
+        dep_max = Deposit.objects.filter(user_id=OuterRef('pk')).values('user_id').annotate(m=Max('created_at')).values('m')[:1]
+        wd_max = Withdraw.objects.filter(user_id=OuterRef('pk')).values('user_id').annotate(m=Max('created_at')).values('m')[:1]
         qs = qs.annotate(
             _win_sum=Sum('game_logs__win_amount'),
             _lose_sum=Sum('game_logs__lose_amount'),
+            _last_gl=Subquery(gl_max),
+            _last_dep=Subquery(dep_max),
+            _last_wd=Subquery(wd_max),
         )
     serializer = UserListSerializer(qs.order_by('-created_at'), many=True)
     return Response(serializer.data)

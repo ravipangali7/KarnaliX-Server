@@ -95,6 +95,7 @@ class UserListSerializer(serializers.ModelSerializer):
     """List with aggregated balances for super/master (masters_balance, users_balance, etc.)."""
     role_display = serializers.CharField(source='get_role_display', read_only=True)
     parent_username = serializers.SerializerMethodField()
+    no_activity_7_days = serializers.SerializerMethodField()
     masters_balance = serializers.SerializerMethodField()
     masters_pl_balance = serializers.SerializerMethodField()
     users_balance = serializers.SerializerMethodField()
@@ -106,7 +107,7 @@ class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'name', 'role', 'role_display', 'parent_username',
+            'id', 'username', 'name', 'role', 'role_display', 'parent_username', 'no_activity_7_days',
             'phone', 'whatsapp_number',
             'main_balance', 'pl_balance', 'bonus_balance', 'exposure_balance', 'exposure_limit',
             'is_active', 'created_at', 'pin',
@@ -114,6 +115,21 @@ class UserListSerializer(serializers.ModelSerializer):
             'players_count', 'masters_count',
             'total_balance', 'total_win_loss',
         ]
+
+    def get_no_activity_7_days(self, obj):
+        if obj.role != UserRole.PLAYER:
+            return False
+        from django.utils import timezone
+        from datetime import timedelta
+        cutoff = timezone.now() - timedelta(days=7)
+        last_login = getattr(obj, 'last_login', None)
+        last_gl = getattr(obj, '_last_gl', None)
+        last_dep = getattr(obj, '_last_dep', None)
+        last_wd = getattr(obj, '_last_wd', None)
+        dates = [x for x in [last_login, last_gl, last_dep, last_wd] if x is not None]
+        if not dates:
+            return True
+        return max(dates) < cutoff
 
     def get_parent_username(self, obj):
         if obj.role == UserRole.PLAYER and obj.parent_id:
@@ -240,6 +256,7 @@ class MeSerializer(serializers.ModelSerializer):
             'main_balance', 'bonus_balance', 'pl_balance', 'exposure_balance', 'exposure_limit',
             'super_balance', 'master_balance', 'player_balance', 'total_balance',
             'parent', 'whatsapp_number', 'country_code', 'currency_symbol',
+            'last_login',
         ]
 
     def get_currency_symbol(self, obj):

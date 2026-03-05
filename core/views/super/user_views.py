@@ -1,5 +1,5 @@
 import secrets
-from django.db.models import Sum
+from django.db.models import Sum, Subquery, OuterRef, Max
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -143,9 +143,15 @@ def player_list(request):
     if err:
         return err
     from django.db.models import Q, Sum
+    gl_max = GameLog.objects.filter(user_id=OuterRef('pk')).values('user_id').annotate(m=Max('created_at')).values('m')[:1]
+    dep_max = Deposit.objects.filter(user_id=OuterRef('pk')).values('user_id').annotate(m=Max('created_at')).values('m')[:1]
+    wd_max = Withdraw.objects.filter(user_id=OuterRef('pk')).values('user_id').annotate(m=Max('created_at')).values('m')[:1]
     qs = get_players_queryset(request.user).annotate(
         _win_sum=Sum('game_logs__win_amount'),
         _lose_sum=Sum('game_logs__lose_amount'),
+        _last_gl=Subquery(gl_max),
+        _last_dep=Subquery(dep_max),
+        _last_wd=Subquery(wd_max),
     ).order_by('-created_at')
     master_id = request.query_params.get('master_id', '').strip()
     if master_id:
