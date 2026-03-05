@@ -41,9 +41,17 @@ def deposit_detail(request, pk):
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
     if request.method == 'PATCH':
-        allowed = {'remarks', 'reference_id'}
         update_fields = []
-        for key in allowed:
+        if 'amount' in request.data and obj.status == 'pending':
+            try:
+                new_amount = Decimal(str(request.data['amount']))
+            except (TypeError, ValueError):
+                return Response({'detail': 'Invalid amount.'}, status=status.HTTP_400_BAD_REQUEST)
+            if new_amount <= 0:
+                return Response({'detail': 'Amount must be positive.'}, status=status.HTTP_400_BAD_REQUEST)
+            obj.amount = new_amount
+            update_fields.append('amount')
+        for key in ('remarks', 'reference_id'):
             if key in request.data:
                 val = request.data.get(key)
                 setattr(obj, key, val if val is not None else '')
