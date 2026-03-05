@@ -132,21 +132,6 @@ def game_callback(request):
         logger.warning("game_callback: invalid parameters, data keys=%s", list(data.keys()) if data else [])
         return JsonResponse({"error": "Invalid parameters"}, status=400)
 
-    # Own calculation: result = wallet_after - wallet_before (win/loss amount); derive win, loss, bet from it
-    result_amount = wallet_after - wallet_before
-    if result_amount > 0:
-        win = result_amount
-        bet = Decimal("0")
-        lose_amount_value = Decimal("0")
-    elif result_amount < 0:
-        win = Decimal("0")
-        bet = -result_amount
-        lose_amount_value = -result_amount
-    else:
-        win = Decimal("0")
-        bet = Decimal("0")
-        lose_amount_value = Decimal("0")
-
     # Only validate token when we have a configured token AND the provider sent one (some providers don't echo token)
     settings = SuperSetting.get_settings()
     if settings and getattr(settings, "game_api_token", None) and settings.game_api_token and (token or "").strip():
@@ -166,11 +151,33 @@ def game_callback(request):
     game_uid = game_uid or "unknown"
     game = _get_or_create_game_and_provider(game_uid)
 
+    existing = GameLog.objects.filter(user=user, round=game_round).first()
+    # Use game log before/after for calculation (our data), not provider wallet_before/wallet_after
+    if existing:
+        before_balance = existing.before_balance or Decimal("0")
+        after_balance = existing.after_balance or Decimal("0")
+    else:
+        before_balance = user.main_balance or Decimal("0")
+        after_balance = wallet_after
+
+    result_amount = after_balance - before_balance
+    if result_amount > 0:
+        win = result_amount
+        bet = Decimal("0")
+        lose_amount_value = Decimal("0")
+    elif result_amount < 0:
+        win = Decimal("0")
+        bet = -result_amount
+        lose_amount_value = -result_amount
+    else:
+        win = Decimal("0")
+        bet = Decimal("0")
+        lose_amount_value = Decimal("0")
+
     result_win = win > 0
     log_type = GameLogType.WIN if result_win else GameLogType.LOSE
     net = result_amount
 
-    existing = GameLog.objects.filter(user=user, round=game_round).first()
     if existing:
         existing.bet_amount = bet
         existing.win_amount = win
@@ -191,8 +198,8 @@ def game_callback(request):
             bet_amount=bet,
             win_amount=win,
             lose_amount=lose_amount_value,
-            before_balance=wallet_before,
-            after_balance=wallet_after,
+            before_balance=before_balance,
+            after_balance=after_balance,
             provider_raw_data=data,
         )
 
@@ -213,8 +220,8 @@ def game_callback(request):
         status=TransactionStatus.SUCCESS,
         remarks=f"Game round {game_round}",
         game_log=game_log,
-        balance_before=wallet_before,
-        balance_after=wallet_after,
+        balance_before=before_balance,
+        balance_after=after_balance,
     )
 
     logger.info(
