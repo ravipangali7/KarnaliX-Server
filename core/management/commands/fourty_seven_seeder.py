@@ -252,9 +252,9 @@ class Command(BaseCommand):
         for prov_name in provider_names:
             code = provider_name_to_code(prov_name)
             self.stdout.write(f"  Provider: {prov_name} ({code})")
-            api_endpoint = (input("    api_endpoint [optional]: ").strip() or "")[:200]
-            api_secret = (input("    api_secret [optional]: ").strip() or "")[:255]
-            api_token = (input("    api_token [optional]: ").strip() or "")[:255]
+            api_endpoint = (input("    api_endpoint [optional]: ").strip() or "https://allapi.online/launch_game1_js")[:200]
+            api_secret = (input("    api_secret [optional]: ").strip() or "c3e328ae4568a521971ff61c6b81f667")[:255]
+            api_token = (input("    api_token [optional]: ").strip() or "deba4c7e-9ed6-4f31-b814-453d646f7e96")[:255]
             obj, created = GameProvider.objects.get_or_create(
                 code=code,
                 defaults={
