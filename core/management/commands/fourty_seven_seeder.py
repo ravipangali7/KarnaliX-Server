@@ -5,9 +5,12 @@ PDF layout: each section has provider name at top center; table has first column
 game name, second column = game uid. Sections are delimited by "-- N of 47 --".
 First section is provider "inout"; then "sa gaming", "United gaming", etc.
 
+When seeding providers, the command prompts for api_endpoint, api_secret, and api_token
+for each of the 47 providers (optional; leave blank to skip or keep existing).
+
 Options:
   --reset    : Delete all games that appear in the PDF (per provider + game_uid), then reseed.
-  --dry-run  : Parse PDF and print counts; no DB writes.
+  --dry-run  : Parse PDF and print counts; no DB writes (no prompts).
   --pdf-path : Override path to PDF (default: inout.pdf next to this command).
 """
 
@@ -244,17 +247,33 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Category created: {cat_name}")
             return obj
 
-        # Seed providers (get_or_create by code)
+        # Seed providers (get_or_create by code); prompt for API data for each
         prov_cache = {}
         for prov_name in provider_names:
             code = provider_name_to_code(prov_name)
+            self.stdout.write(f"  Provider: {prov_name} ({code})")
+            api_endpoint = (input("    api_endpoint [optional]: ").strip() or "")[:200]
+            api_secret = (input("    api_secret [optional]: ").strip() or "")[:255]
+            api_token = (input("    api_token [optional]: ").strip() or "")[:255]
             obj, created = GameProvider.objects.get_or_create(
                 code=code,
-                defaults={"name": prov_name.strip(), "is_active": True},
+                defaults={
+                    "name": prov_name.strip(),
+                    "is_active": True,
+                    "api_endpoint": api_endpoint,
+                    "api_secret": api_secret,
+                    "api_token": api_token,
+                },
             )
+            if not created:
+                # Update API fields for existing provider
+                obj.api_endpoint = api_endpoint or obj.api_endpoint
+                obj.api_secret = api_secret or obj.api_secret
+                obj.api_token = api_token or obj.api_token
+                obj.save(update_fields=["api_endpoint", "api_secret", "api_token"])
             prov_cache[code] = obj
             if created:
-                self.stdout.write(f"  Provider created: {prov_name} ({code})")
+                self.stdout.write(self.style.SUCCESS(f"  Provider created: {prov_name} ({code})"))
 
         # Seed games
         zero = Decimal("0")
