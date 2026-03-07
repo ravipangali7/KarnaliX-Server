@@ -179,6 +179,21 @@ def game_callback(request):
     net = result_amount
 
     existing = GameLog.objects.filter(user=user, round=game_round).first()
+    # Provider two-callback pattern: first = bet/result, second = round-end (bet=0, win=0, change=0).
+    # Do not overwrite GameLog when we already have a round and this callback is a no-op.
+    is_round_end_only = (
+        callback_bet == 0 and callback_win == 0 and change == 0 and result_amount == 0
+    )
+    if existing and is_round_end_only:
+        # Idempotent ack: keep existing GameLog, only sync balance to provider's wallet_after.
+        user.main_balance = wallet_after
+        user.save(update_fields=["main_balance"])
+        logger.info(
+            "game_callback: round-end only (idempotent) user_id=%s game_round=%s wallet_after=%s",
+            user.pk, game_round, wallet_after,
+        )
+        return JsonResponse({"status": "ok"}, status=200)
+
     if existing:
         existing.bet_amount = bet
         existing.win_amount = win
