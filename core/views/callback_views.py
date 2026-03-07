@@ -232,7 +232,9 @@ def game_callback(request):
         master.pl_balance = (master.pl_balance or Decimal("0")) - result_amount
         master.save(update_fields=["pl_balance"])
 
-    if not existing:
+    # Create P/L transaction for every callback that has a net change (bet deduction or win/loss).
+    # With two-callback pattern: 1st = bet (existing=False), 2nd = result (existing=True); both need a transaction.
+    if net != 0:
         Transaction.objects.create(
             user=user,
             action_type=TransactionActionType.IN if net >= 0 else TransactionActionType.OUT,
