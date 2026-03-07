@@ -4,7 +4,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from core.permissions import require_role
 from core.models import User, UserRole, Deposit, Withdraw, BonusRequest, Transaction, GameLog, PaymentMode
-from core.serializers import DepositSerializer, WithdrawSerializer, BonusRequestSerializer, TransactionSerializer, GameLogSerializer, PaymentModeSerializer, ReferralSerializer
+from core.serializers import DepositSerializer, WithdrawSerializer, BonusRequestSerializer, TransactionSerializer, GameLogSerializer, PaymentModeSerializer, ReferralSerializer, BonusRuleSerializer
+from core.services.deposit_service import get_applicable_deposit_bonus_rule
 
 
 def _get_related_transaction(game_log):
@@ -84,6 +85,22 @@ def referral_detail(request, pk):
     if not user:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
     return Response(ReferralSerializer(user).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def deposit_bonus_eligibility(request):
+    """Return whether current user is eligible for first-deposit bonus and the applicable rule (for modal preview)."""
+    err = require_role(request, [UserRole.PLAYER])
+    if err:
+        return err
+    is_first_deposit = Deposit.objects.filter(user=request.user, status='approved').count() == 0
+    rule = get_applicable_deposit_bonus_rule()
+    applicable_rule = BonusRuleSerializer(rule).data if rule else None
+    return Response({
+        'is_first_deposit': is_first_deposit,
+        'applicable_rule': applicable_rule,
+    })
 
 
 @api_view(['GET'])

@@ -1,9 +1,12 @@
 """
 Deposit approval: parent main_balance deducted, user main_balance added.
 Dual transactions. Powerhouse: only adjust super balance (no parent deduction).
+First-deposit bonus: if player's first approved deposit and an applicable deposit
+bonus rule exists, credit bonus to user's bonus_balance and create BONUS transaction.
 """
 from decimal import Decimal
 from django.utils import timezone
+from django.db.models import Q
 
 from core.models import (
     User,
@@ -14,8 +17,30 @@ from core.models import (
     TransactionWallet,
     TransactionType,
     TransactionStatus,
+    BonusRule,
+    BonusType,
+    RewardType,
 )
 from core.notification_utils import notify_player_approval
+
+
+def get_applicable_deposit_bonus_rule():
+    """
+    Return the single applicable deposit bonus rule (active, current time within
+    valid_from/valid_until). Same rule used for eligibility preview and for
+    crediting on first approved deposit. None means no limit for that bound.
+    """
+    now = timezone.now()
+    return (
+        BonusRule.objects.filter(
+            bonus_type=BonusType.DEPOSIT,
+            is_active=True,
+        )
+        .filter(Q(valid_from__isnull=True) | Q(valid_from__lte=now))
+        .filter(Q(valid_until__isnull=True) | Q(valid_until__gte=now))
+        .order_by('id')
+        .first()
+    )
 
 
 def approve_deposit(deposit, processed_by, pin=None, use_password=False):
@@ -79,4 +104,25 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
     )
     if user.role == UserRole.PLAYER:
         notify_player_approval(user, processed_by, f'Your deposit of ₹{amount} has been approved.')
+        # First-deposit bonus: if this is the user's first approved deposit and a rule applies, credit bonus
+        approved_count = Deposit.objects.filter(user=user, status='approved').count()
+        if approved_count == 1:
+            rule = get_applicable_deposit_bonus_rule()
+            if rule:
+                if rule.reward_type == RewardType.FLAT:
+                    bonus_amount = rule.reward_amount
+                else:
+                    bonus_amount = (deposit.amount * rule.reward_amount / 100).quantize(Decimal('0.01'))
+                if bonus_amount > 0:
+                    user.bonus_balance = (user.bonus_balance or Decimal('0')) + bonus_amount
+                    user.save(update_fields=['bonus_balance'])
+                    Transaction.objects.create(
+                        user=user,
+                        action_type=TransactionActionType.IN,
+                        wallet=TransactionWallet.BONUS_BALANCE,
+                        transaction_type=TransactionType.BONUS,
+                        amount=bonus_amount,
+                        status=TransactionStatus.SUCCESS,
+                        remarks=f'First deposit bonus (Deposit #{deposit.pk})',
+                    )
     return True, None
