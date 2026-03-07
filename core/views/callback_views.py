@@ -75,6 +75,9 @@ def _get_callback_data(request):
     Same field names: mobile, user_id, bet_amount, win_amount, game_uid, game_round,
     token, wallet_before, wallet_after, change, timestamp.
     """
+    print("---------------------- Call BACK ----------------------")
+    print(request.body)
+    print("---------------------- ENDCall BACK ----------------------")
     content_type = (request.content_type or "").strip().split(";")[0].lower()
     if content_type == "application/json":
         try:
