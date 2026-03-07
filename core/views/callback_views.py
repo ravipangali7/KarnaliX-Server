@@ -179,8 +179,8 @@ def game_callback(request):
     net = result_amount
 
     existing = GameLog.objects.filter(user=user, round=game_round).first()
-    # Provider two-callback pattern: first = bet/result, second = round-end (bet=0, win=0, change=0).
-    # Do not overwrite GameLog when we already have a round and this callback is a no-op.
+    # Provider two-callback pattern: 1st = bet/deduct, 2nd = result (win_amount) or round-end (bet=0, win=0, change=0).
+    # When 2nd is round-end only, do not overwrite GameLog; when 2nd is result, preserve bet and before_balance from 1st.
     is_round_end_only = (
         callback_bet == 0 and callback_win == 0 and change == 0 and result_amount == 0
     )
@@ -195,6 +195,10 @@ def game_callback(request):
         return JsonResponse({"status": "ok"}, status=200)
 
     if existing:
+        # Second callback (result): provider often sends bet_amount=0; preserve first-callback bet and round-start balance.
+        if callback_bet == 0 and existing.bet_amount > 0:
+            bet = existing.bet_amount
+            wallet_before = existing.before_balance
         existing.bet_amount = bet
         existing.win_amount = win
         existing.type = log_type
