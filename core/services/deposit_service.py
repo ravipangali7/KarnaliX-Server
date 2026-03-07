@@ -18,6 +18,7 @@ from core.models import (
     TransactionType,
     TransactionStatus,
     BonusRule,
+    BonusRequest,
     BonusType,
     RewardType,
 )
@@ -114,6 +115,16 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
                 else:
                     bonus_amount = (deposit.amount * rule.reward_amount / 100).quantize(Decimal('0.01'))
                 if bonus_amount > 0:
+                    BonusRequest.objects.create(
+                        user=user,
+                        amount=bonus_amount,
+                        bonus_type=BonusType.DEPOSIT,
+                        bonus_rule=rule,
+                        status='approved',
+                        processed_by=processed_by,
+                        processed_at=timezone.now(),
+                        remarks=f'First deposit bonus (Deposit #{deposit.pk})',
+                    )
                     user.bonus_balance = (user.bonus_balance or Decimal('0')) + bonus_amount
                     user.save(update_fields=['bonus_balance'])
                     Transaction.objects.create(
