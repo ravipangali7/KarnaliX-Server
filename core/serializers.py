@@ -18,6 +18,7 @@ from .models import (
     PaymentMode,
     Deposit,
     Withdraw,
+    WithdrawWallet,
     BonusRequest,
     BonusRule,
     GameProvider,
@@ -32,6 +33,7 @@ from .models import (
     CMSPage,
     PaymentMethod,
 )
+from .services.withdraw_eligibility import get_withdraw_eligibility
 
 
 # --- Auth ---
@@ -556,9 +558,51 @@ class WithdrawSerializer(serializers.ModelSerializer):
 
 
 class WithdrawCreateSerializer(serializers.ModelSerializer):
+    wallet = serializers.ChoiceField(choices=WithdrawWallet.choices, default=WithdrawWallet.MAIN, required=False)
+
     class Meta:
         model = Withdraw
-        fields = ['amount', 'payment_mode', 'screenshot', 'remarks']
+        fields = ['amount', 'wallet', 'payment_mode', 'screenshot', 'remarks']
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        if not request or not request.user:
+            return attrs
+        user = request.user
+        amount = attrs.get('amount')
+        wallet = (attrs.get('wallet') or WithdrawWallet.MAIN)
+        if wallet not in (WithdrawWallet.MAIN, WithdrawWallet.BONUS):
+            wallet = WithdrawWallet.MAIN
+        eligibility = get_withdraw_eligibility(user)
+        main_withdrawable = eligibility['main_withdrawable']
+        bonus_withdrawable = eligibility['bonus_withdrawable']
+        total_withdrawable = eligibility['total_withdrawable']
+        can_withdraw_main = eligibility['can_withdraw_main']
+        can_withdraw_bonus = eligibility['can_withdraw_bonus']
+        if amount is not None and amount > total_withdrawable:
+            raise serializers.ValidationError(
+                {'amount': f'Amount exceeds withdrawable balance (₹{total_withdrawable}).'}
+            )
+        if wallet == WithdrawWallet.BONUS:
+            if not can_withdraw_bonus:
+                raise serializers.ValidationError(
+                    {'wallet': 'Bonus is not withdrawable until bonus roll requirement is met.'}
+                )
+            if amount is not None and amount > bonus_withdrawable:
+                raise serializers.ValidationError(
+                    {'amount': f'Amount exceeds bonus withdrawable (₹{bonus_withdrawable}).'}
+                )
+        else:
+            if not can_withdraw_main:
+                raise serializers.ValidationError(
+                    {'wallet': 'Main balance is not withdrawable until you have played at least one game after deposit.'}
+                )
+            if amount is not None and amount > main_withdrawable:
+                raise serializers.ValidationError(
+                    {'amount': f'Amount exceeds main withdrawable (₹{main_withdrawable}).'}
+                )
+        attrs['wallet'] = wallet
+        return attrs
 
 
 # --- BonusRequest ---

@@ -361,10 +361,16 @@ class Deposit(models.Model):
 
 # --- 5. Withdraw ---
 
+class WithdrawWallet(models.TextChoices):
+    MAIN = 'main', 'Main'
+    BONUS = 'bonus', 'Bonus'
+
+
 class Withdraw(models.Model):
     """
     Withdrawal request. On approval: user's main_balance deducted, parent's main_balance
     added (Deposit & Withdraw Logic). KYC must be approved for player before withdraw (Security #6).
+    Player can choose wallet=main or bonus when bonus is withdrawable.
     """
     user = models.ForeignKey(
         User,
@@ -372,6 +378,11 @@ class Withdraw(models.Model):
         related_name='withdrawals'
     )
     amount = models.DecimalField(max_digits=16, decimal_places=2)
+    wallet = models.CharField(
+        max_length=10,
+        choices=WithdrawWallet.choices,
+        default=WithdrawWallet.MAIN
+    )
     payment_mode = models.ForeignKey(
         PaymentMode,
         on_delete=models.SET_NULL,

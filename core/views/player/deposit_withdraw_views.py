@@ -32,7 +32,7 @@ def withdraw_request(request):
     password = request.data.get('password')
     if not password or not request.user.check_password(password):
         return Response({'detail': 'Invalid password.'}, status=status.HTTP_400_BAD_REQUEST)
-    ser = WithdrawCreateSerializer(data=request.data)
+    ser = WithdrawCreateSerializer(data=request.data, context={'request': request})
     ser.is_valid(raise_exception=True)
     data = ser.validated_data.copy()
     payment_mode = data.get('payment_mode')

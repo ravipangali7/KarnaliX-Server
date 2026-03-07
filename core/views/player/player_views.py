@@ -6,6 +6,7 @@ from core.permissions import require_role
 from core.models import User, UserRole, Deposit, Withdraw, BonusRequest, Transaction, GameLog, PaymentMode
 from core.serializers import DepositSerializer, WithdrawSerializer, BonusRequestSerializer, TransactionSerializer, GameLogSerializer, PaymentModeSerializer, ReferralSerializer, BonusRuleSerializer
 from core.services.deposit_service import get_applicable_deposit_bonus_rule
+from core.services.withdraw_eligibility import get_withdraw_eligibility
 
 
 def _get_related_transaction(game_log):
@@ -24,9 +25,15 @@ def wallet(request):
     if err: return err
     u = request.user
     ctx = {'request': request}
+    eligibility = get_withdraw_eligibility(u)
     return Response({
         'main_balance': str(u.main_balance or 0),
         'bonus_balance': str(u.bonus_balance or 0),
+        'main_withdrawable': str(eligibility['main_withdrawable']),
+        'bonus_withdrawable': str(eligibility['bonus_withdrawable']),
+        'total_withdrawable': str(eligibility['total_withdrawable']),
+        'can_withdraw_main': eligibility['can_withdraw_main'],
+        'can_withdraw_bonus': eligibility['can_withdraw_bonus'],
         'deposits': DepositSerializer(Deposit.objects.filter(user=u).select_related('payment_mode', 'payment_mode__payment_method').order_by('-created_at')[:50], many=True, context=ctx).data,
         'withdrawals': WithdrawSerializer(Withdraw.objects.filter(user=u).select_related('payment_mode', 'payment_mode__payment_method').order_by('-created_at')[:50], many=True, context=ctx).data,
         'bonus_requests': BonusRequestSerializer(BonusRequest.objects.filter(user=u).select_related('bonus_rule').order_by('-created_at')[:50], many=True, context=ctx).data,

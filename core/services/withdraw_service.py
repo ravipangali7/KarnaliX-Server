@@ -5,6 +5,7 @@ from core.models import (
     UserRole,
     PaymentMode,
     Withdraw,
+    WithdrawWallet,
     Transaction,
     TransactionActionType,
     TransactionWallet,
@@ -12,6 +13,7 @@ from core.models import (
     TransactionStatus,
 )
 from core.notification_utils import notify_player_approval
+from core.services.withdraw_eligibility import get_withdraw_eligibility
 
 
 def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
@@ -44,10 +46,32 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
     if user.role == UserRole.PLAYER:
         if not PaymentMode.objects.filter(user=user, status='approved').exists():
             return False, 'At least one of the player\'s payment methods must be approved before withdrawal.'
-    if (user.main_balance or Decimal('0')) < amount:
-        return False, 'Insufficient balance'
-    user.main_balance = (user.main_balance or Decimal('0')) - amount
-    user.save(update_fields=['main_balance'])
+        # Re-check eligibility at approval time (player only; wallet = main or bonus)
+        wallet = getattr(withdrawal, 'wallet', None) or WithdrawWallet.MAIN
+        eligibility = get_withdraw_eligibility(user)
+        if wallet == WithdrawWallet.BONUS:
+            if not eligibility['can_withdraw_bonus']:
+                return False, 'Bonus is not withdrawable until bonus roll requirement is met.'
+            if amount > eligibility['bonus_withdrawable']:
+                return False, 'Insufficient bonus balance.'
+            user.bonus_balance = (user.bonus_balance or Decimal('0')) - amount
+            user.save(update_fields=['bonus_balance'])
+            out_wallet = TransactionWallet.BONUS_BALANCE
+        else:
+            if not eligibility['can_withdraw_main']:
+                return False, 'Main balance is not withdrawable until at least one game is played after deposit.'
+            if amount > eligibility['main_withdrawable']:
+                return False, 'Insufficient balance'
+            user.main_balance = (user.main_balance or Decimal('0')) - amount
+            user.save(update_fields=['main_balance'])
+            out_wallet = TransactionWallet.MAIN_BALANCE
+    else:
+        # Non-player (e.g. master): main only
+        if (user.main_balance or Decimal('0')) < amount:
+            return False, 'Insufficient balance'
+        user.main_balance = (user.main_balance or Decimal('0')) - amount
+        user.save(update_fields=['main_balance'])
+        out_wallet = TransactionWallet.MAIN_BALANCE
     parent.main_balance = (parent.main_balance or Decimal('0')) + amount
     parent.save(update_fields=['main_balance'])
     withdrawal.status = 'approved'
@@ -57,7 +81,7 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
     Transaction.objects.create(
         user=user,
         action_type=TransactionActionType.OUT,
-        wallet=TransactionWallet.MAIN_BALANCE,
+        wallet=out_wallet,
         transaction_type=TransactionType.WITHDRAW,
         amount=amount,
         status=TransactionStatus.SUCCESS,
