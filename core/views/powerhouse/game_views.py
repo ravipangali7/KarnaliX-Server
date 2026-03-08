@@ -112,6 +112,22 @@ def game_list_create(request):
         return err
     if request.method == 'GET':
         qs = Game.objects.all().select_related('category', 'provider').order_by('name')
+        provider_ids_param = request.query_params.get('provider_ids')
+        if provider_ids_param:
+            try:
+                ids = [int(i.strip()) for i in provider_ids_param.split(',') if i.strip().isdigit()]
+                if ids:
+                    qs = qs.filter(provider_id__in=ids)
+            except (ValueError, TypeError):
+                pass
+        else:
+            provider_id_param = request.query_params.get('provider_id') or request.query_params.get('provider')
+            if provider_id_param:
+                try:
+                    pid = int(provider_id_param)
+                    qs = qs.filter(provider_id=pid)
+                except (ValueError, TypeError):
+                    pass
         return Response(GameListSerializer(qs, many=True).data)
     data = _coerce_multipart_booleans(request.data)
     ser = GameDetailSerializer(data=data)
