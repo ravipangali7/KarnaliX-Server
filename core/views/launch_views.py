@@ -122,6 +122,7 @@ def launch_game_by_id(request, game_id):
     if not provider.is_active:
         return Response({"error": "Game provider is not available"}, status=status.HTTP_400_BAD_REQUEST)
 
+    # Resolve launch URL: provider api_endpoint, or fallback to SuperSetting game_api_launch_url / game_api_url
     launch_base = (provider.api_endpoint or "").strip()
     if not launch_base and super_settings:
         launch_base = (getattr(super_settings, "game_api_launch_url", None) or "").strip() or (super_settings.game_api_url or "").strip()
@@ -129,17 +130,22 @@ def launch_game_by_id(request, game_id):
         return Response({"error": "Game provider is not available"}, status=status.HTTP_400_BAD_REQUEST)
     launch_base = _normalize_launch_base(launch_base)
 
+    # Resolve secret/token: provider values, or fallback to SuperSetting (super game) when provider fields are blank
     api_secret = (provider.api_secret or "").strip()
+    if not api_secret and super_settings:
+        api_secret = (getattr(super_settings, "game_api_secret", None) or "").strip()
     if not api_secret:
         return Response(
-            {"error": "Provider API secret is not set. Configure it in the provider form."},
+            {"error": "Provider API secret is not set. Configure it in the provider form or in SuperSetting (super game)."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     api_token = (provider.api_token or "").strip()
+    if not api_token and super_settings:
+        api_token = (getattr(super_settings, "game_api_token", None) or "").strip()
     if not api_token:
         return Response(
-            {"error": "Provider API token is not set. Configure it in the provider form."},
+            {"error": "Provider API token is not set. Configure it in the provider form or in SuperSetting (super game)."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
