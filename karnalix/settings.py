@@ -133,8 +133,8 @@ WSGI_APPLICATION = 'karnalix.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'luckyuser365',
-        # 'NAME': 'kingxclub',
+        # 'NAME': 'luckyuser365',
+        'NAME': 'kingxclub',
         'USER': 'root',
         'PASSWORD': '7a5a70064acdfd90',
         'HOST': '127.0.0.1',
