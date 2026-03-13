@@ -201,6 +201,7 @@ def second_home_sections(request):
             provider_cards.append({
                 'id': p.id,
                 'name': p.name,
+                'provider_code': getattr(p, 'code', '') or '',
                 'logo': (p.code or p.name[:2].upper() if p.name else '')[:2],
                 'logo_image': logo_image,
                 'games': 0,
@@ -208,16 +209,27 @@ def second_home_sections(request):
                 'link': link,
             })
 
-    # --- Top games & Popular games: id, name, image (full URL), link, category_name, provider_name, min_bet, max_bet ---
+    # --- Full game object: same shape as games list API + absolute image URL and link ---
     def game_card(game):
+        cat = game.category
+        prov = game.provider
         return {
             'id': game.id,
             'name': game.name,
+            'game_uid': game.game_uid or '',
             'image': _game_image_url(request, game),
-            'category': getattr(game.category, 'name', '') if game.category_id else '',
+            'image_url': (game.image_url or '').strip() or None,
+            'coming_soon_image': _build_media_url(request, game.coming_soon_image.name) if game.coming_soon_image else None,
             'min_bet': float(game.min_bet) if game.min_bet is not None else 0,
             'max_bet': float(game.max_bet) if game.max_bet is not None else 0,
-            'provider': getattr(game.provider, 'name', '') if game.provider_id else '',
+            'category': game.category_id,
+            'category_name': cat.name if cat else '',
+            'provider': game.provider_id,
+            'provider_name': prov.name if prov else '',
+            'provider_code': prov.code if prov else '',
+            'is_top_game': bool(game.is_top_game),
+            'is_popular_game': bool(game.is_popular_game),
+            'is_lobby': bool(game.is_lobby),
             'link': '/games/{}'.format(game.id),
         }
 
