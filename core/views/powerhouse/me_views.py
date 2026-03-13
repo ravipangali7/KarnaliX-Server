@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -26,6 +28,14 @@ def profile_update(request):
     for f in ['name', 'phone', 'email', 'whatsapp_number']:
         if f in request.data:
             setattr(u, f, request.data[f])
+    if 'main_balance' in request.data:
+        try:
+            val = request.data['main_balance']
+            new_balance = Decimal(str(val)) if val not in (None, '') else Decimal('0')
+            if new_balance >= 0:
+                u.main_balance = new_balance
+        except (TypeError, ValueError):
+            pass
     u.save()
     create_activity_log(request.user, ActivityAction.PROFILE_UPDATE, request=request)
     return Response(UserDetailSerializer(u).data)
