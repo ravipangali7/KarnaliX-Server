@@ -193,6 +193,10 @@ GAME_PROVIDER_API_SECRET = ''
 SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'https://luckyuser365.com')
 # SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'https://kingxclub.com')
 
+# Optional: path to built frontend index.html for serve_app_index (so WhatsApp/Facebook get site logo in link previews).
+# Example: os.path.join(BASE_DIR, '../frontend/dist/index.html')
+FRONTEND_INDEX_HTML_PATH = os.environ.get('FRONTEND_INDEX_HTML_PATH', '')
+
 # Google OAuth (Login with Google). Set GOOGLE_CLIENT_ID in env for id_token verification.
 GOOGLE_CLIENT_ID = '386184793784-njlhdvqjh0698tnc5tffi79m5pjqpig4.apps.googleusercontent.com'
 

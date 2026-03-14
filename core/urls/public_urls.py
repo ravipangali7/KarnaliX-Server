@@ -22,6 +22,8 @@ urlpatterns = [
     path('auth/forgot-password/whatsapp-contact/', password_reset_views.forgot_password_whatsapp_contact),
     # Site
     path('site-setting/', site_views.site_setting),
+    path('site-meta/', site_views.site_meta),
+    path('serve-app-index/', site_views.serve_app_index),
     path('countries/', site_views.countries_list),
     path('payment-methods/', site_views.payment_methods_list),
     path('slider/', site_views.slider_list),

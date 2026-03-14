@@ -1,7 +1,9 @@
 """
 Public site: SiteSetting (single), CMSPage by slug, Testimonials list, second-home sections.
 """
+import os
 from django.conf import settings as django_settings
+from django.http import HttpResponse, Http404
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -9,6 +11,19 @@ from rest_framework import status
 
 from core.models import SiteSetting, CMSPage, Testimonial, SliderSlide, LiveBettingSection, Popup, PaymentMethod, Country, Game, GameProvider, GameCategory
 from core.serializers import SiteSettingSerializer, CMSPageSerializer, TestimonialSerializer, SliderSlideSerializer, LiveBettingSectionSerializer, PopupSerializer, PaymentMethodSerializer
+
+
+def _get_og_meta(request):
+    """Shared logic for og_image, og_title, og_description from SiteSetting."""
+    site_domain = getattr(django_settings, 'SITE_DOMAIN', '').rstrip('/') or request.build_absolute_uri('/').rstrip('/')
+    obj = SiteSetting.objects.first()
+    if obj and obj.logo:
+        og_image = request.build_absolute_uri(obj.logo.url)
+    else:
+        og_image = f"{site_domain}/karnali-logo.png"
+    og_title = (obj.name.strip() if obj and getattr(obj, 'name', None) else None) or 'KarnaliX'
+    og_description = (obj.footer_description.strip() if obj and getattr(obj, 'footer_description', None) else None) or ''
+    return og_image, og_title, (og_description[:300] if og_description else '')
 
 
 @api_view(['GET'])
@@ -20,6 +35,42 @@ def site_setting(request):
         return Response({}, status=status.HTTP_200_OK)
     serializer = SiteSettingSerializer(obj)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def site_meta(request):
+    """
+    Open Graph / social meta for link previews (WhatsApp, Facebook, etc.).
+    Crawlers do not run JavaScript, so they need meta in the initial HTML.
+    Returns og_image (absolute URL), og_title, og_description for server-side injection.
+    """
+    og_image, og_title, og_description = _get_og_meta(request)
+    return Response({
+        'og_image': og_image,
+        'og_title': og_title,
+        'og_description': og_description,
+    })
+
+
+def serve_app_index(request):
+    """
+    Serve the frontend index.html with Open Graph meta injected from SiteSetting
+    so WhatsApp/Facebook show the site logo in link previews.
+    Set FRONTEND_INDEX_HTML_PATH in settings to the path to your built index.html
+    (e.g. os.path.join(BASE_DIR, '../frontend/dist/index.html')).
+    Then point your frontend root URL to this view (e.g. Nginx proxy_pass for / to this).
+    """
+    path = getattr(django_settings, 'FRONTEND_INDEX_HTML_PATH', None)
+    if not path or not os.path.isfile(path):
+        raise Http404('FRONTEND_INDEX_HTML_PATH not set or file not found')
+    with open(path, 'r', encoding='utf-8') as f:
+        html = f.read()
+    og_image, og_title, og_description = _get_og_meta(request)
+    default_logo = 'https://luckyuser365.com/karnali-logo.png'
+    if default_logo in html:
+        html = html.replace(default_logo, og_image)
+    return HttpResponse(html, content_type='text/html; charset=utf-8')
 
 
 @api_view(['GET'])
