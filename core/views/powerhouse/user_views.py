@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from core.permissions import require_role, get_supers_queryset, get_masters_queryset, get_players_queryset
-from core.models import User, UserRole, Deposit, Withdraw, GameLog, Transaction, ActivityLog
+from core.models import User, UserRole, SuperSetting, Deposit, Withdraw, GameLog, Transaction, ActivityLog
 from core.serializers import (
     UserListSerializer, UserDetailSerializer, UserCreateUpdateSerializer,
     DepositSerializer, WithdrawSerializer, GameLogSerializer,
@@ -335,6 +335,26 @@ def user_reset_password_super(request, pk):
 @permission_classes([IsAuthenticated])
 def user_reset_password_master(request, pk):
     return _user_reset_password_response(request, 'master', pk)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def user_set_default_master(request, pk):
+    err, qs = _get_queryset(request, 'master')
+    if err:
+        return err
+    pin_err = _verify_admin_pin(request)
+    if pin_err:
+        return pin_err
+    master = qs.filter(pk=pk).first()
+    if not master:
+        return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    settings = SuperSetting.get_settings()
+    if settings is None:
+        settings = SuperSetting()
+    settings.default_master_id = pk
+    settings.save()
+    return Response({'detail': 'Default master set.'})
 
 
 @api_view(['POST'])
