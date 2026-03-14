@@ -36,6 +36,7 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
             amount=amount,
             status=TransactionStatus.SUCCESS,
             remarks='Withdraw approved',
+            processed_by=processed_by,
         )
         if user.role == UserRole.PLAYER:
             notify_player_approval(user, processed_by, f'Your withdrawal of ₹{amount} has been approved.')
@@ -44,8 +45,10 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
     if not parent:
         return False, 'User has no parent'
     if user.role == UserRole.PLAYER:
-        if not PaymentMode.objects.filter(user=user, status='approved').exists():
-            return False, 'At least one of the player\'s payment methods must be approved before withdrawal.'
+        # Bypass payment-method check when master/super/powerhouse withdraw for a player
+        if processed_by.role not in (UserRole.MASTER, UserRole.SUPER, UserRole.POWERHOUSE):
+            if not PaymentMode.objects.filter(user=user, status='approved').exists():
+                return False, 'At least one of the player\'s payment methods must be approved before withdrawal.'
         # Re-check eligibility at approval time (player only; wallet = main or bonus)
         wallet = getattr(withdrawal, 'wallet', None) or WithdrawWallet.MAIN
         eligibility = get_withdraw_eligibility(user)
@@ -86,6 +89,7 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
         amount=amount,
         status=TransactionStatus.SUCCESS,
         remarks='Withdraw approved',
+        processed_by=processed_by,
     )
     Transaction.objects.create(
         user=parent,
@@ -96,6 +100,7 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
         status=TransactionStatus.SUCCESS,
         from_user=user,
         remarks='Withdraw from ' + user.username,
+        processed_by=processed_by,
     )
     if user.role == UserRole.PLAYER:
         notify_player_approval(user, processed_by, f'Your withdrawal of ₹{amount} has been approved.')

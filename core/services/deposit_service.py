@@ -66,6 +66,7 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
             amount=amount,
             status=TransactionStatus.SUCCESS,
             remarks=f'Deposit #{deposit.pk} approved',
+            processed_by=processed_by,
         )
         if user.role == UserRole.PLAYER:
             notify_player_approval(user, processed_by, f'Your deposit of ₹{amount} has been approved.')
@@ -92,6 +93,7 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
         status=TransactionStatus.SUCCESS,
         to_user=user,
         remarks=f'Deposit #{deposit.pk} for {user.username}',
+        processed_by=processed_by,
     )
     Transaction.objects.create(
         user=user,
@@ -102,6 +104,7 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
         status=TransactionStatus.SUCCESS,
         from_user=parent,
         remarks=f'Deposit #{deposit.pk} approved',
+        processed_by=processed_by,
     )
     if user.role == UserRole.PLAYER:
         notify_player_approval(user, processed_by, f'Your deposit of ₹{amount} has been approved.')
@@ -115,6 +118,9 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
                 else:
                     bonus_amount = (deposit.amount * rule.reward_amount / 100).quantize(Decimal('0.01'))
                 if bonus_amount > 0:
+                    parent_balance = parent.main_balance or Decimal('0')
+                    if parent_balance < bonus_amount:
+                        return False, f'Parent master has insufficient balance for first deposit bonus (need {bonus_amount}, have {parent_balance}).'
                     BonusRequest.objects.create(
                         user=user,
                         amount=bonus_amount,
@@ -125,8 +131,21 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
                         processed_at=timezone.now(),
                         remarks=f'First deposit bonus (Deposit #{deposit.pk})',
                     )
+                    parent.main_balance = parent_balance - bonus_amount
+                    parent.save(update_fields=['main_balance'])
                     user.bonus_balance = (user.bonus_balance or Decimal('0')) + bonus_amount
                     user.save(update_fields=['bonus_balance'])
+                    Transaction.objects.create(
+                        user=parent,
+                        action_type=TransactionActionType.OUT,
+                        wallet=TransactionWallet.MAIN_BALANCE,
+                        transaction_type=TransactionType.BONUS,
+                        amount=bonus_amount,
+                        status=TransactionStatus.SUCCESS,
+                        to_user=user,
+                        remarks=f'First deposit bonus for {user.username} (Deposit #{deposit.pk})',
+                        processed_by=processed_by,
+                    )
                     Transaction.objects.create(
                         user=user,
                         action_type=TransactionActionType.IN,
@@ -134,6 +153,8 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
                         transaction_type=TransactionType.BONUS,
                         amount=bonus_amount,
                         status=TransactionStatus.SUCCESS,
+                        from_user=parent,
                         remarks=f'First deposit bonus (Deposit #{deposit.pk})',
+                        processed_by=processed_by,
                     )
     return True, None
