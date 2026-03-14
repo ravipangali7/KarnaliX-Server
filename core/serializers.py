@@ -264,6 +264,7 @@ class MeSerializer(serializers.ModelSerializer):
     player_balance = serializers.SerializerMethodField()
     total_balance = serializers.SerializerMethodField()
     currency_symbol = serializers.SerializerMethodField()
+    parent_whatsapp_number = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -271,9 +272,15 @@ class MeSerializer(serializers.ModelSerializer):
             'id', 'username', 'name', 'role', 'role_display',
             'main_balance', 'bonus_balance', 'pl_balance', 'exposure_balance', 'exposure_limit',
             'super_balance', 'master_balance', 'player_balance', 'total_balance',
-            'parent', 'whatsapp_number', 'country_code', 'currency_symbol',
+            'parent', 'whatsapp_number', 'parent_whatsapp_number', 'country_code', 'currency_symbol',
             'last_login',
         ]
+
+    def get_parent_whatsapp_number(self, obj):
+        if obj.role != UserRole.PLAYER or not obj.parent_id:
+            return None
+        raw = (getattr(obj.parent, 'whatsapp_number', None) or '').strip()
+        return raw or None
 
     def get_currency_symbol(self, obj):
         code = (obj.country_code or '').strip()
