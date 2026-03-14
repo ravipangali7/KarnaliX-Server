@@ -14,9 +14,10 @@ from core.game_api_client import launch_game, build_launch_url
 
 def _wallet_amount_for_launch(user, min_bet=None):
     """
-    Wallet amount to send to provider at launch.
-    When main_balance is 0 and bonus_balance >= min_bet: send only bonus_balance.
-    Otherwise: send main_balance + bonus_balance.
+    Wallet amount to send to provider at launch. Never send main + bonus combined.
+    - If main_balance > 0: send only main_balance.
+    - Else if main_balance is 0 and bonus_balance >= min_bet: send only bonus_balance.
+    - Else: send 0.
     """
     main = user.main_balance if user.main_balance is not None else Decimal("0")
     bonus = user.bonus_balance if user.bonus_balance is not None else Decimal("0")
@@ -27,9 +28,11 @@ def _wallet_amount_for_launch(user, min_bet=None):
         bonus = Decimal(str(bonus))
     if not isinstance(min_bet, Decimal):
         min_bet = Decimal(str(min_bet))
+    if main > 0:
+        return float(main)
     if main == 0 and bonus >= min_bet:
         return float(bonus)
-    return float(main + bonus)
+    return 0.0
 
 
 def _normalize_launch_base(launch_base: str) -> str:
