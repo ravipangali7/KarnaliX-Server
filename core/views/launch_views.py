@@ -1,4 +1,6 @@
 """Game launch: build provider URL and redirect authenticated user."""
+from decimal import Decimal
+
 from django.conf import settings as django_settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -8,6 +10,26 @@ from rest_framework import status
 from core.permissions import require_role
 from core.models import SuperSetting, UserRole, Game
 from core.game_api_client import launch_game, build_launch_url
+
+
+def _wallet_amount_for_launch(user, min_bet=None):
+    """
+    Wallet amount to send to provider at launch.
+    When main_balance is 0 and bonus_balance >= min_bet: send only bonus_balance.
+    Otherwise: send main_balance + bonus_balance.
+    """
+    main = user.main_balance if user.main_balance is not None else Decimal("0")
+    bonus = user.bonus_balance if user.bonus_balance is not None else Decimal("0")
+    min_bet = (min_bet if min_bet is not None else Decimal("0"))
+    if not isinstance(main, Decimal):
+        main = Decimal(str(main))
+    if not isinstance(bonus, Decimal):
+        bonus = Decimal(str(bonus))
+    if not isinstance(min_bet, Decimal):
+        min_bet = Decimal(str(min_bet))
+    if main == 0 and bonus >= min_bet:
+        return float(bonus)
+    return float(main + bonus)
 
 
 def _normalize_launch_base(launch_base: str) -> str:
@@ -39,7 +61,9 @@ def _launch_game_common(request):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     user = request.user
-    wallet_amount = float((user.main_balance or 0) + (user.bonus_balance or 0))
+    game_for_min_bet = Game.objects.filter(game_uid=game_uid).first()
+    min_bet = game_for_min_bet.min_bet if game_for_min_bet else None
+    wallet_amount = _wallet_amount_for_launch(user, min_bet)
     launch_base = (getattr(settings, "game_api_launch_url", None) or "").strip() or settings.game_api_url
     launch_base = _normalize_launch_base(launch_base)
     user_id = str(user.pk)
@@ -166,7 +190,7 @@ def launch_game_by_id(request, game_id):
         callback_url = request.build_absolute_uri("/api/callback/").rstrip("/") or None
 
     user = request.user
-    wallet_amount = float((user.main_balance or 0) + (user.bonus_balance or 0))
+    wallet_amount = _wallet_amount_for_launch(user, game.min_bet)
     user_id = str(user.pk)
 
     try:
