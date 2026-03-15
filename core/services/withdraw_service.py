@@ -51,8 +51,8 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
                 return False, 'At least one of the player\'s payment methods must be approved before withdrawal.'
         # Re-check eligibility at approval time (player only; wallet = main or bonus)
         wallet = getattr(withdrawal, 'wallet', None) or WithdrawWallet.MAIN
-        eligibility = get_withdraw_eligibility(user)
         if wallet == WithdrawWallet.BONUS:
+            eligibility = get_withdraw_eligibility(user)
             if not eligibility['can_withdraw_bonus']:
                 return False, 'Bonus is not withdrawable until bonus roll requirement is met.'
             if amount > eligibility['bonus_withdrawable']:
@@ -61,13 +61,23 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
             user.save(update_fields=['bonus_balance'])
             out_wallet = TransactionWallet.BONUS_BALANCE
         else:
-            if not eligibility['can_withdraw_main']:
-                return False, 'Main balance is not withdrawable until at least one game is played after deposit.'
-            if amount > eligibility['main_withdrawable']:
-                return False, 'Insufficient balance'
-            user.main_balance = (user.main_balance or Decimal('0')) - amount
-            user.save(update_fields=['main_balance'])
-            out_wallet = TransactionWallet.MAIN_BALANCE
+            # Main wallet: bypass game-after-deposit when master/super/powerhouse do manual withdrawal
+            manual_bypass = processed_by.role in (UserRole.MASTER, UserRole.SUPER, UserRole.POWERHOUSE)
+            if manual_bypass:
+                if amount > (user.main_balance or Decimal('0')):
+                    return False, 'Insufficient balance'
+                user.main_balance = (user.main_balance or Decimal('0')) - amount
+                user.save(update_fields=['main_balance'])
+                out_wallet = TransactionWallet.MAIN_BALANCE
+            else:
+                eligibility = get_withdraw_eligibility(user)
+                if not eligibility['can_withdraw_main']:
+                    return False, 'Main balance is not withdrawable until at least one game is played after deposit.'
+                if amount > eligibility['main_withdrawable']:
+                    return False, 'Insufficient balance'
+                user.main_balance = (user.main_balance or Decimal('0')) - amount
+                user.save(update_fields=['main_balance'])
+                out_wallet = TransactionWallet.MAIN_BALANCE
     else:
         # Non-player (e.g. master): main only
         if (user.main_balance or Decimal('0')) < amount:
