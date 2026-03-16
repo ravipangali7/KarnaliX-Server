@@ -239,7 +239,7 @@ def second_home_sections(request):
                 continue
             logo_image = _provider_image_url(request, p)
             single_game_id = None
-            games_qs = Game.objects.filter(provider=p, is_active=True, is_coming_soon=False)
+            games_qs = Game.objects.filter(provider=p, is_active=True)
             if games_qs.count() == 1:
                 single_game_id = games_qs.values_list('id', flat=True).first()
             elif games_qs.count() > 1:
@@ -291,7 +291,7 @@ def second_home_sections(request):
     all_game_ids = list(dict.fromkeys(int(x) for x in all_game_ids if isinstance(x, (int, float)) or (isinstance(x, str) and str(x).isdigit())))
     games_by_id = {}
     if all_game_ids:
-        for g in Game.objects.filter(is_active=True, is_coming_soon=False, id__in=all_game_ids).select_related('category', 'provider'):
+        for g in Game.objects.filter(is_active=True, id__in=all_game_ids).select_related('category', 'provider'):
             games_by_id[g.id] = g
 
     top_items = []

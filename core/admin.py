@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth import get_user_model
 
 from .models import (
+    ComingSoon,
     Country,
     SuperSetting,
     User,
@@ -241,26 +242,17 @@ class GameAdmin(admin.ModelAdmin):
         'min_bet',
         'max_bet',
         'is_active',
-        'is_coming_soon',
-        'coming_soon_launch_date',
         'created_at',
     )
-    list_filter = ('is_active', 'is_coming_soon', 'provider', 'category')
+    list_filter = ('is_active', 'provider', 'category')
     search_fields = ('name', 'game_uid')
     autocomplete_fields = ('provider', 'category')
     readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         (None, {'fields': ('name', 'provider', 'category', 'game_uid')}),
-        ('Media', {'fields': ('image', 'image_url')}),
+        ('Media', {'fields': ('image', 'image_url', 'coming_soon_image')}),
         ('Bet limits', {'fields': ('min_bet', 'max_bet')}),
         ('Status', {'fields': ('is_active',)}),
-        (
-            'Coming soon',
-            {
-                'fields': ('is_coming_soon', 'coming_soon_launch_date', 'coming_soon_description'),
-                'description': 'Mark as coming soon and set optional launch date and description for the card.',
-            },
-        ),
         ('Timestamps', {'fields': ('created_at', 'updated_at')}),
     )
 
@@ -393,6 +385,15 @@ class PopupAdmin(admin.ModelAdmin):
 @admin.register(Promotion)
 class PromotionAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'is_active', 'order', 'updated_at')
+    list_editable = ('is_active', 'order')
+    list_filter = ('is_active',)
+    ordering = ('order', 'id')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(ComingSoon)
+class ComingSoonAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'coming_date', 'is_active', 'order', 'updated_at')
     list_editable = ('is_active', 'order')
     list_filter = ('is_active',)
     ordering = ('order', 'id')
