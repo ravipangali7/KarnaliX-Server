@@ -209,6 +209,10 @@ EMAIL_HOST_PASSWORD = 'ibidizfnxgtdpywm'
 DEFAULT_FROM_EMAIL = 'no-reply@luckyuser365.com'
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
+# WhatsApp OTP (flexgrew.cloud). Used for OTP via WhatsApp on register + forgot-password.
+FLEXGREW_API_KEY = '34d05f7d9d0f684d9a3d3a3b63d569e3715bf41eacf3b66cb58bbd5d3b8cf16d'
+FLEXGREW_BASE_URL = 'https://flexgrew.cloud/api'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
