@@ -134,7 +134,8 @@ WSGI_APPLICATION = 'karnalix.wsgi.application'
 # SITE_DOMAIN = 'https://bdt.luckyuser365.com'
 # SITE_DOMAIN = 'https://myr.luckyuser365.com'
 # SITE_DOMAIN = 'https://aed.luckyuser365.com'
-SITE_DOMAIN = 'https://aud.luckyuser365.com'
+# SITE_DOMAIN = 'https://aud.luckyuser365.com'
+SITE_DOMAIN = 'https://bht.luckyuser365.com'
 
 DATABASES = {
     'default': {
@@ -144,7 +145,8 @@ DATABASES = {
         # 'NAME': 'bdtluckyuser365',
         # 'NAME': 'myrluckyuser365',
         # 'NAME': 'aedluckyuser365',
-        'NAME': 'audluckyuser365',
+        # 'NAME': 'audluckyuser365',
+        'NAME': 'bhtluckyuser365',
         'USER': 'root',
         'PASSWORD': '7a5a70064acdfd90',
         'HOST': '127.0.0.1',
