@@ -138,8 +138,17 @@ def site_setting_update(request):
 
     ser = SiteSettingSerializer(obj, data=data, partial=(request.method == 'PATCH'))
     ser.is_valid(raise_exception=True)
-    ser.save()
-    return Response(ser.data)
+    saved = ser.save()
+
+    # Defensive persistence for plain text ticker:
+    # in some client/content-type combinations, serializer input may not retain
+    # this field consistently, so we explicitly sync from request payload when present.
+    if 'scrolling_text' in request.data:
+        scrolling_text = request.data.get('scrolling_text')
+        saved.scrolling_text = '' if scrolling_text is None else str(scrolling_text)
+        saved.save(update_fields=['scrolling_text'])
+
+    return Response(SiteSettingSerializer(saved).data)
 
 
 ALLOWED_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'}
