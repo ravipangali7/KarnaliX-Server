@@ -34,7 +34,10 @@ def site_setting(request):
     if not obj:
         return Response({}, status=status.HTTP_200_OK)
     serializer = SiteSettingSerializer(obj)
-    return Response(serializer.data)
+    data = dict(serializer.data)
+    # Never expose private OAuth secret on public endpoint.
+    data.pop('google_client_secret', None)
+    return Response(data)
 
 
 @api_view(['GET'])

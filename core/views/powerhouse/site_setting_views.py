@@ -83,6 +83,19 @@ def _parse_decimal(value):
         return None
 
 
+def _parse_bool(value, default=False):
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    s = str(value).strip().lower()
+    if s in {'1', 'true', 'yes', 'on'}:
+        return True
+    if s in {'0', 'false', 'no', 'off'}:
+        return False
+    return default
+
+
 def _decimal_or_zero(value):
     from decimal import Decimal
     parsed = _parse_decimal(value)
@@ -131,6 +144,10 @@ def site_setting_update(request):
             'site_footer_json': _parse_json_field(request.data.get('site_footer_json'), {}),
             'site_welcome_deposit_json': _parse_json_field(request.data.get('site_welcome_deposit_json'), {}),
             'site_theme_json': _sanitize_site_theme_json(request.data.get('site_theme_json')),
+            'google_auth_enabled': _parse_bool(request.data.get('google_auth_enabled'), obj.google_auth_enabled),
+            'google_client_id': request.data.get('google_client_id') or '',
+            'google_client_secret': request.data.get('google_client_secret') or '',
+            'google_redirect_uri': request.data.get('google_redirect_uri') or '',
         }
         if request.FILES.get('logo'):
             data['logo'] = request.FILES.get('logo')
