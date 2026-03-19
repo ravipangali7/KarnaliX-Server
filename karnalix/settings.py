@@ -140,13 +140,13 @@ SITE_DOMAIN = 'https://inr.luckyuser365.com'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'luckyuser365',
-        # 'NAME': 'inrluckyuser365',
+        # 'NAME': 'luckyuser365',
+        'NAME': 'inrluckyuser365',
         # 'NAME': 'bdtluckyuser365',
         # 'NAME': 'myrluckyuser365',
         # 'NAME': 'aedluckyuser365',
         # 'NAME': 'audluckyuser365',
-        'NAME': 'bhtluckyuser365',
+        # 'NAME': 'bhtluckyuser365',
         'USER': 'root',
         'PASSWORD': '7a5a70064acdfd90',
         'HOST': '127.0.0.1',
