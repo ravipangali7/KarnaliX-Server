@@ -141,6 +141,16 @@ def site_setting_update(request):
             data = dict(data)
             data['site_theme_json'] = _sanitize_site_theme_json(data.get('site_theme_json'))
 
+    print(
+        "site_setting_update start",
+        {
+            "id": getattr(obj, "id", None),
+            "method": request.method,
+            "keys": sorted(list(request.data.keys())) if hasattr(request.data, "keys") else [],
+        },
+        flush=True,
+    )
+
     ser = SiteSettingSerializer(obj, data=data, partial=(request.method == 'PATCH'))
     ser.is_valid(raise_exception=True)
     saved = ser.save()
@@ -152,6 +162,12 @@ def site_setting_update(request):
         scrolling_text = request.data.get('scrolling_text')
         saved.scrolling_text = '' if scrolling_text is None else str(scrolling_text)
         saved.save(update_fields=['scrolling_text'])
+
+    print(
+        "site_setting_update saved",
+        {"id": saved.id, "scrolling_text": (saved.scrolling_text or "")[:120]},
+        flush=True,
+    )
 
     return Response(SiteSettingSerializer(saved).data)
 
