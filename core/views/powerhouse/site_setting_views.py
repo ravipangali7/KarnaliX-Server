@@ -108,7 +108,12 @@ def site_setting_update(request):
             'hero_title': request.data.get('hero_title') or '',
             'hero_subtitle': request.data.get('hero_subtitle') or '',
             'footer_description': request.data.get('footer_description') or '',
-            'scrolling_text': request.data.get('scrolling_text') or '',
+            # Preserve existing value if client does not send this key.
+            'scrolling_text': (
+                request.data.get('scrolling_text')
+                if 'scrolling_text' in request.data
+                else (obj.scrolling_text or '')
+            ),
             'promo_banners': _parse_promo_banners(request.data.get('promo_banners')),
             'active_players': _parse_positive_int(request.data.get('active_players')) or 0,
             'games_available': _parse_positive_int(request.data.get('games_available')) or 0,
