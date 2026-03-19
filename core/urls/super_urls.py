@@ -16,6 +16,7 @@ from core.views.super import (
     statement_views,
     report_views,
 )
+from core.views.player import transfer_views
 
 urlpatterns = [
     path('dashboard/', dashboard_views.dashboard),
@@ -67,6 +68,7 @@ urlpatterns = [
     path('messages/contacts/', message_views.message_contacts),
     path('messages/unread-count/', message_views.message_unread_count),
     path('messages/send/', message_views.message_create),
+    path('transfer/', transfer_views.transfer),
     path('settlement/<int:pk>/', settlement_views.settle),
     path('payment-mode-verification/', payment_mode_verification_views.payment_mode_verification_list),
     path('payment-mode-verification/<int:pk>/approve/', payment_mode_verification_views.payment_mode_approve),

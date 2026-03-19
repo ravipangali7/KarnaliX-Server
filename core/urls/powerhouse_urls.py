@@ -28,6 +28,7 @@ from core.views.powerhouse import (
     me_views,
     payment_method_views,
 )
+from core.views.player import transfer_views
 from core.views.super import statement_views as super_statement_views
 from core.views.super import report_views as super_report_views
 
@@ -119,6 +120,7 @@ urlpatterns = [
     path('messages/contacts/', message_views.message_contacts),
     path('messages/unread-count/', message_views.message_unread_count),
     path('messages/send/', message_views.message_create),
+    path('transfer/', transfer_views.transfer),
     path('payment-mode-verification/', payment_mode_verification_views.payment_mode_verification_list),
     path('payment-mode-verification/<int:pk>/approve/', payment_mode_verification_views.payment_mode_approve),
     path('payment-mode-verification/<int:pk>/reject/', payment_mode_verification_views.payment_mode_reject),

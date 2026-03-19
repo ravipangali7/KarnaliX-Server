@@ -845,6 +845,7 @@ class SiteSetting(models.Model):
     )
     instant_payouts = models.PositiveIntegerField(default=0)
     footer_description = models.TextField(blank=True)
+    scrolling_text = models.TextField(blank=True)
     home_stats = models.JSONField(default=list, blank=True)
     biggest_wins = models.JSONField(default=list, blank=True)
     promo_banners = models.JSONField(default=list, blank=True)
