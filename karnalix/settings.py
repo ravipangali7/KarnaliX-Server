@@ -219,6 +219,10 @@ EMAIL_HOST_PASSWORD = 'ibidizfnxgtdpywm'
 DEFAULT_FROM_EMAIL = 'no-reply@luckyuser365.com'
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
+# OTP channel by player domain (see core.otp_domain_policy). Unknown hosts (e.g. localhost) use this default.
+_otp_default = os.environ.get('OTP_DOMAIN_POLICY_DEFAULT', 'email_whatsapp').strip().lower()
+OTP_DOMAIN_POLICY_DEFAULT = _otp_default if _otp_default in ('sms_only', 'email_whatsapp') else 'email_whatsapp'
+
 # WhatsApp OTP (flexgrew.cloud). Used for OTP via WhatsApp on register + forgot-password.
 FLEXGREW_API_KEY = '34d05f7d9d0f684d9a3d3a3b63d569e3715bf41eacf3b66cb58bbd5d3b8cf16d'
 FLEXGREW_BASE_URL = 'https://flexgrew.cloud/api'

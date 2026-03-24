@@ -13,6 +13,7 @@ urlpatterns = [
     path('auth/google/complete/', auth_views.google_complete),
     # Signup (phone + OTP)
     path('auth/signup/check-phone/', signup_views.signup_check_phone),
+    path('auth/signup/check-email/', signup_views.signup_check_email),
     path('auth/signup/send-otp/', signup_views.signup_send_otp),
     path('auth/signup/verify-otp/', signup_views.signup_verify_otp),
     # Forgot password (unauthenticated)

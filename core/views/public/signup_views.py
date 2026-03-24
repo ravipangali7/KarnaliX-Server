@@ -1,5 +1,5 @@
 """
-Signup flow: check phone, send OTP via SMS, verify OTP, then register (handled in auth_views).
+Signup flow: check phone/email, send OTP (SMS, WhatsApp, or email by domain policy), verify, then register.
 """
 import random
 import string
@@ -12,6 +12,8 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from core.models import User, SignupOTP, SignupSession
+from core.otp_domain_policy import otp_policy_for_request, signup_channel_allowed
+from core.services.email_service import send_otp_email
 from core.services.sms_service import send_sms
 from core.services.whatsapp_service import send_whatsapp_otp
 
@@ -26,7 +28,11 @@ def normalize_phone(phone: str) -> str:
     return digits if digits else ""
 
 
-# Rate limit: 1 send per 60 seconds per phone
+def normalize_email(email: str) -> str:
+    return (email or "").strip().lower()
+
+
+# Rate limit: 1 send per 60 seconds per phone or email
 SIGNUP_OTP_COOLDOWN_SECONDS = 60
 
 
@@ -47,23 +53,86 @@ def signup_check_phone(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+def signup_check_email(request):
+    """
+    POST { "email": "..." }.
+    Return { "exists": true } if a user already uses this email.
+    """
+    email = normalize_email(request.data.get("email") or "")
+    if not email or "@" not in email:
+        return Response({"detail": "Invalid email address."}, status=status.HTTP_400_BAD_REQUEST)
+    exists = User.objects.filter(email__iexact=email).exists()
+    return Response({"exists": exists})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
 def signup_send_otp(request):
     """
-    POST { "phone": "...", "channel": "sms" | "whatsapp" }.
-    channel defaults to "sms". Rate-limited. Create SignupOTP, send via chosen channel, return { "detail": "OTP sent." }.
+    POST { "phone": "...", "channel": "sms" | "whatsapp" } OR { "email": "...", "channel": "email" }.
+    Domain policy restricts allowed channels. Rate-limited.
     """
-    phone = (request.data.get("phone") or "").strip()
+    policy = otp_policy_for_request(request)
+    phone_raw = (request.data.get("phone") or "").strip()
+    email_raw = normalize_email(request.data.get("email") or "")
     channel = (request.data.get("channel") or "sms").strip().lower()
-    if channel not in ("sms", "whatsapp"):
+    if channel not in ("sms", "whatsapp", "email"):
         channel = "sms"
-    normalized = normalize_phone(phone)
+
+    if not signup_channel_allowed(policy, channel):
+        if policy == "sms_only":
+            return Response(
+                {"detail": "Only SMS is available on this site for phone signup."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {"detail": "SMS is not available on this site. Use email or WhatsApp."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    now = timezone.now()
+
+    if channel == "email":
+        if not email_raw or "@" not in email_raw:
+            return Response({"detail": "Invalid email address."}, status=status.HTTP_400_BAD_REQUEST)
+        if phone_raw:
+            return Response({"detail": "Send either phone or email, not both."}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(email__iexact=email_raw).exists():
+            return Response({"detail": "User already exists with this email."}, status=status.HTTP_400_BAD_REQUEST)
+
+        recent = SignupOTP.objects.filter(
+            email=email_raw,
+            created_at__gte=now - timedelta(seconds=SIGNUP_OTP_COOLDOWN_SECONDS),
+        ).first()
+        if recent:
+            return Response(
+                {"detail": f"Please wait {SIGNUP_OTP_COOLDOWN_SECONDS} seconds before requesting another OTP."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        SignupOTP.objects.filter(email=email_raw).delete()
+        otp = "".join(random.choices(string.digits, k=6))
+        expires_at = now + timedelta(minutes=10)
+        SignupOTP.objects.create(phone="", email=email_raw, otp=otp, expires_at=expires_at)
+
+        ok, msg = send_otp_email(email_raw, otp, purpose="signup")
+        if not ok:
+            return Response({"detail": msg or "Failed to send email."}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response({"detail": "OTP sent."})
+
+    # sms or whatsapp — phone required
+    normalized = normalize_phone(phone_raw)
     if not normalized or len(normalized) < 10:
         return Response({"detail": "Invalid phone number."}, status=status.HTTP_400_BAD_REQUEST)
+    if email_raw:
+        return Response({"detail": "Send either phone or email, not both."}, status=status.HTTP_400_BAD_REQUEST)
     if User.objects.filter(phone=normalized).exists():
         return Response({"detail": "User already exists with this phone."}, status=status.HTTP_400_BAD_REQUEST)
 
-    now = timezone.now()
-    recent = SignupOTP.objects.filter(phone=normalized, created_at__gte=now - timedelta(seconds=SIGNUP_OTP_COOLDOWN_SECONDS)).first()
+    recent = SignupOTP.objects.filter(
+        phone=normalized,
+        created_at__gte=now - timedelta(seconds=SIGNUP_OTP_COOLDOWN_SECONDS),
+    ).first()
     if recent:
         return Response(
             {"detail": f"Please wait {SIGNUP_OTP_COOLDOWN_SECONDS} seconds before requesting another OTP."},
@@ -73,7 +142,7 @@ def signup_send_otp(request):
     SignupOTP.objects.filter(phone=normalized).delete()
     otp = "".join(random.choices(string.digits, k=6))
     expires_at = now + timedelta(minutes=10)
-    SignupOTP.objects.create(phone=normalized, otp=otp, expires_at=expires_at)
+    SignupOTP.objects.create(phone=normalized, email="", otp=otp, expires_at=expires_at)
 
     text = f"Your KarnaliX verification code: {otp}"
     if channel == "whatsapp":
@@ -91,16 +160,37 @@ def signup_send_otp(request):
 @permission_classes([AllowAny])
 def signup_verify_otp(request):
     """
-    POST { "phone": "...", "otp": "123456" }.
+    POST { "phone": "...", "otp": "123456" } OR { "email": "...", "otp": "123456" }.
     If valid, delete OTP, create SignupSession, return { "signup_token": "..." }.
     """
     phone = (request.data.get("phone") or "").strip()
+    email = normalize_email(request.data.get("email") or "")
     otp = (request.data.get("otp") or "").strip()
     normalized = normalize_phone(phone)
-    if not normalized or len(normalized) < 10:
-        return Response({"detail": "Invalid phone number."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if email and normalized:
+        return Response({"detail": "Provide either phone or email, not both."}, status=status.HTTP_400_BAD_REQUEST)
+    if not email and (not normalized or len(normalized) < 10):
+        return Response({"detail": "Invalid phone or email."}, status=status.HTTP_400_BAD_REQUEST)
+    if email and ("@" not in email):
+        return Response({"detail": "Invalid email address."}, status=status.HTTP_400_BAD_REQUEST)
     if not otp or len(otp) != 6:
         return Response({"detail": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if email:
+        record = (
+            SignupOTP.objects.filter(email__iexact=email, otp=otp)
+            .filter(expires_at__gt=timezone.now())
+            .order_by("-created_at")
+            .first()
+        )
+        if not record:
+            return Response({"detail": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
+        SignupOTP.objects.filter(email__iexact=email).delete()
+        token = "".join(random.choices(string.ascii_letters + string.digits, k=48))
+        expires_at = timezone.now() + timedelta(minutes=15)
+        SignupSession.objects.create(phone="", email=email, token=token, expires_at=expires_at)
+        return Response({"signup_token": token})
 
     record = (
         SignupOTP.objects.filter(phone=normalized, otp=otp)
@@ -114,5 +204,5 @@ def signup_verify_otp(request):
     SignupOTP.objects.filter(phone=normalized).delete()
     token = "".join(random.choices(string.ascii_letters + string.digits, k=48))
     expires_at = timezone.now() + timedelta(minutes=15)
-    SignupSession.objects.create(phone=normalized, token=token, expires_at=expires_at)
+    SignupSession.objects.create(phone=normalized, email="", token=token, expires_at=expires_at)
     return Response({"signup_token": token})
