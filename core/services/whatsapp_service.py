@@ -157,9 +157,11 @@ def _send_meta_template(
             }
         ]
 
+    # Meta accepts E.164; send with leading + (digits-only string normalized upstream).
+    to_recipient = to_digits if to_digits.startswith("+") else f"+{to_digits}"
     payload = {
         "messaging_product": "whatsapp",
-        "to": to_digits,
+        "to": to_recipient,
         "type": "template",
         "template": template,
     }
