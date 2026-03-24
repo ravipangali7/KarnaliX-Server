@@ -13,6 +13,7 @@ from core.views import launch_views
 urlpatterns = [
     path('dashboard/', dashboard_views.dashboard),
     path('wallet/', player_views.wallet),
+    path('master-whatsapp/', player_views.master_whatsapp),
     path('transactions/', player_views.transaction_list),
     path('game-log/', player_views.game_log_list),
     path('game-log/<int:pk>/', player_views.game_log_detail),

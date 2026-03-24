@@ -50,6 +50,29 @@ def wallet(request):
         'bonus_requests': BonusRequestSerializer(BonusRequest.objects.filter(user=u).select_related('bonus_rule').order_by('-created_at')[:50], many=True, context=ctx).data,
     })
 
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def master_whatsapp(request):
+    """Fresh parent master WhatsApp fields for deposit/withdraw links (avoid stale /me/ cache)."""
+    err = require_role(request, [UserRole.PLAYER])
+    if err:
+        return err
+    u = User.objects.select_related('parent').get(pk=request.user.pk)
+    parent = u.parent
+    if parent is None:
+        return Response({
+            'master_whatsapp_number': None,
+            'master_whatsapp_deposit': None,
+            'master_whatsapp_withdraw': None,
+        })
+    return Response({
+        'master_whatsapp_number': (parent.whatsapp_number or '').strip() or None,
+        'master_whatsapp_deposit': (getattr(parent, 'whatsapp_deposit', None) or '').strip() or None,
+        'master_whatsapp_withdraw': (getattr(parent, 'whatsapp_withdraw', None) or '').strip() or None,
+    })
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def transaction_list(request):
