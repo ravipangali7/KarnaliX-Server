@@ -168,7 +168,7 @@ class SuperSetting(models.Model):
     # Flexgrew WhatsApp API (fallback when Meta Cloud fields above are not set). See flexgrew.cloud API docs.
     flexgrew_api_key = models.TextField(blank=True)
     flexgrew_base_url = models.CharField(max_length=512, blank=True)
-    flexgrew_otp_template_id = models.PositiveIntegerField(null=True, blank=True)
+    flexgrew_otp_template_id = models.CharField(max_length=64, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -79,6 +79,19 @@ def _resolve_flexgrew_config(ss: SuperSetting | None) -> tuple[str, str]:
     return key, base.rstrip("/")
 
 
+def _flexgrew_template_id_as_int(ss: SuperSetting | None) -> int | None:
+    """Parse Flexgrew template id from stored string; API expects integer templateId."""
+    if not ss:
+        return None
+    raw = (getattr(ss, "flexgrew_otp_template_id", None) or "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
 def _flexgrew_error_message(fj: dict | None) -> str:
     if not fj:
         return ""
@@ -213,7 +226,7 @@ def _send_via_flexgrew(to_digits: str, text: str, ss: SuperSetting | None = None
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    template_id = int(ss.flexgrew_otp_template_id) if (ss and ss.flexgrew_otp_template_id is not None) else None
+    template_id = _flexgrew_template_id_as_int(ss)
 
     try:
         contact_id = None
