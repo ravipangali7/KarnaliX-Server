@@ -142,18 +142,18 @@ class SuperSettingAdmin(SingletonAdminMixin, admin.ModelAdmin):
 
 @admin.register(SignupOTP)
 class SignupOTPAdmin(admin.ModelAdmin):
-    list_display = ('phone', 'email', 'otp', 'expires_at', 'created_at')
+    list_display = ('phone', 'otp', 'expires_at', 'created_at')
     list_filter = ('created_at',)
-    search_fields = ('phone', 'email')
-    readonly_fields = ('phone', 'email', 'otp', 'expires_at', 'created_at')
+    search_fields = ('phone',)
+    readonly_fields = ('phone', 'otp', 'expires_at', 'created_at')
 
 
 @admin.register(SignupSession)
 class SignupSessionAdmin(admin.ModelAdmin):
-    list_display = ('phone', 'email', 'token', 'expires_at', 'created_at')
+    list_display = ('phone', 'token', 'expires_at', 'created_at')
     list_filter = ('created_at',)
-    search_fields = ('phone', 'email', 'token')
-    readonly_fields = ('phone', 'email', 'token', 'expires_at', 'created_at')
+    search_fields = ('phone', 'token')
+    readonly_fields = ('phone', 'token', 'expires_at', 'created_at')
 
 
 @admin.register(PaymentMode)

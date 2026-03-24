@@ -1034,8 +1034,7 @@ class PasswordResetOTP(models.Model):
 # --- 18. SignupOTP (phone verification before account creation) ---
 
 class SignupOTP(models.Model):
-    phone = models.CharField(max_length=20, blank=True, default='', db_index=True)
-    email = models.EmailField(max_length=254, blank=True, default='', db_index=True)
+    phone = models.CharField(max_length=20, db_index=True)
     otp = models.CharField(max_length=10)
     expires_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1044,16 +1043,13 @@ class SignupOTP(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        if self.email:
-            return f"Signup OTP for {self.email[:2]}***"
-        return f"Signup OTP for {(self.phone or '')[:4]}***"
+        return f"Signup OTP for {self.phone[:4]}***"
 
 
 # --- 19. SignupSession (short-lived token after OTP verify) ---
 
 class SignupSession(models.Model):
-    phone = models.CharField(max_length=20, blank=True, default='', db_index=True)
-    email = models.EmailField(max_length=254, blank=True, default='', db_index=True)
+    phone = models.CharField(max_length=20, db_index=True)
     token = models.CharField(max_length=64, unique=True, db_index=True)
     expires_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)

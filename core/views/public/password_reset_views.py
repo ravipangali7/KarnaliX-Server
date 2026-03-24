@@ -12,7 +12,6 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from core.models import User, PasswordResetOTP, SiteSetting
-from core.otp_domain_policy import forgot_channel_allowed, otp_policy_for_request
 from core.services.email_service import send_otp_email
 from core.services.sms_service import send_sms
 from core.services.whatsapp_service import send_whatsapp_otp
@@ -99,18 +98,6 @@ def forgot_password_send_otp(request):
     channel = (request.data.get("channel") or "").strip().lower()
     if channel not in ("phone", "email", "whatsapp"):
         return Response({"detail": "channel must be 'phone', 'email', or 'whatsapp'."}, status=status.HTTP_400_BAD_REQUEST)
-
-    policy = otp_policy_for_request(request)
-    if not forgot_channel_allowed(policy, channel):
-        if policy == "sms_only":
-            return Response(
-                {"detail": "OTP via WhatsApp is not available on this site. Use SMS or email."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        return Response(
-            {"detail": "SMS is not available on this site. Use email or WhatsApp."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
 
     user = User.objects.filter(pk=user_id).first()
     if not user:

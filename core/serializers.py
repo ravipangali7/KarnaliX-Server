@@ -56,25 +56,13 @@ class LoginSerializer(serializers.Serializer):
 
 
 class RegisterSerializer(serializers.Serializer):
-    """Signup after OTP: signup_token + phone OR email, name, password."""
+    """Phone-first signup: requires signup_token (from verify-otp), phone, name, password."""
     signup_token = serializers.CharField()
-    phone = serializers.CharField(required=False, allow_blank=True)
-    email = serializers.EmailField(required=False, allow_blank=True)
+    phone = serializers.CharField()
     name = serializers.CharField()
     password = serializers.CharField(write_only=True, min_length=6)
     referral_code = serializers.CharField(required=False, allow_blank=True)
     country_code = serializers.CharField(required=False, allow_blank=True)
-
-    def validate(self, attrs):
-        phone = (attrs.get('phone') or '').strip()
-        email = (attrs.get('email') or '').strip()
-        if not phone and not email:
-            raise serializers.ValidationError({'phone': 'Phone or email is required.'})
-        if phone and email:
-            raise serializers.ValidationError('Provide either phone or email, not both.')
-        attrs['phone'] = phone
-        attrs['email'] = email
-        return attrs
 
     def validate_country_code(self, value):
         v = (value or '').strip()

@@ -19,34 +19,11 @@ from core.serializers import (
 )
 from core.services.bonus_service import apply_referral_bonus
 from core.services.activity_log_service import create_activity_log
-from core.views.public.signup_views import normalize_email, normalize_phone
+from core.views.public.signup_views import normalize_phone
 from core.channel_utils import broadcast_session_revoked
 
 # Username for Google signup: alphanumeric and underscore only, 3–30 chars
 USERNAME_REGEX = re.compile(r'^[a-zA-Z0-9_]{3,30}$')
-
-
-def _username_from_email(email: str) -> str:
-    """Unique username from email local part; 3–30 chars, alphanumeric + underscore."""
-    local = email.split("@", 1)[0] if "@" in email else "user"
-    base = re.sub(r"[^a-zA-Z0-9_]", "_", local).strip("_").lower()
-    if not base:
-        base = "user"
-    if len(base) < 3:
-        base = (base + "_usr")[:30]
-    base = base[:30]
-    if not USERNAME_REGEX.match(base):
-        cleaned = re.sub(r"[^a-zA-Z0-9_]", "", local).lower() or "user"
-        base = ("user_" + cleaned)[:30]
-        if len(base) < 3:
-            base = "user_usr"
-    username = base[:30]
-    n = 0
-    while User.objects.filter(username=username).exists():
-        n += 1
-        suffix = f"_{n}"
-        username = (base[: max(0, 30 - len(suffix))] + suffix)[:30]
-    return username
 
 
 def get_default_master():
@@ -108,36 +85,23 @@ def login(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
-    """POST { signup_token, phone | email, name, password, referral_code? }. Creates user after OTP verification."""
+    """POST { signup_token, phone, name, password, referral_code? }. Creates user after OTP verification."""
     ser = RegisterSerializer(data=request.data)
     ser.is_valid(raise_exception=True)
     data = ser.validated_data.copy()
     signup_token = (data.get('signup_token') or '').strip()
-    email_reg = normalize_email(data.get('email') or '')
     phone_raw = (data.get('phone') or '').strip()
-    normalized_phone = normalize_phone(phone_raw) if phone_raw else ''
-    now = timezone.now()
+    normalized_phone = normalize_phone(phone_raw)
+    if not normalized_phone or len(normalized_phone) < 10:
+        return Response({'detail': 'Invalid phone number.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    if email_reg:
-        session = (
-            SignupSession.objects.filter(token=signup_token, email__iexact=email_reg)
-            .filter(expires_at__gt=now)
-            .first()
-        )
-        if not session:
-            return Response({'detail': 'Invalid or expired signup token.'}, status=status.HTTP_400_BAD_REQUEST)
-        if User.objects.filter(email__iexact=email_reg).exists():
-            return Response({'detail': 'An account with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
-    else:
-        if not normalized_phone or len(normalized_phone) < 10:
-            return Response({'detail': 'Invalid phone number.'}, status=status.HTTP_400_BAD_REQUEST)
-        session = (
-            SignupSession.objects.filter(token=signup_token, phone=normalized_phone)
-            .filter(expires_at__gt=now)
-            .first()
-        )
-        if not session:
-            return Response({'detail': 'Invalid or expired signup token.'}, status=status.HTTP_400_BAD_REQUEST)
+    session = (
+        SignupSession.objects.filter(token=signup_token, phone=normalized_phone)
+        .filter(expires_at__gt=timezone.now())
+        .first()
+    )
+    if not session:
+        return Response({'detail': 'Invalid or expired signup token.'}, status=status.HTTP_400_BAD_REQUEST)
 
     referral_code = (data.pop('referral_code', None) or '').strip()
     parent = None
@@ -152,42 +116,26 @@ def register(request):
     if not parent:
         return Response({'detail': 'No default master configured. Contact support.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
+    username = normalized_phone
+    if User.objects.filter(username=username).exists():
+        username = f"user_{normalized_phone}"
+    name = (data.get('name') or '').strip() or username
     password = data['password']
-    name = (data.get('name') or '').strip()
     country_code = (data.get('country_code') or '').strip()
     if country_code not in ('977', '91'):
         country_code = ''
 
-    if email_reg:
-        username = _username_from_email(email_reg)
-        name = name or username
-        user = User(
-            username=username,
-            role=UserRole.PLAYER,
-            name=name,
-            phone='',
-            email=email_reg,
-            whatsapp_number='',
-            country_code='',
-            parent=parent,
-            referred_by=referred_by,
-        )
-    else:
-        username = normalized_phone
-        if User.objects.filter(username=username).exists():
-            username = f"user_{normalized_phone}"
-        name = name or username
-        user = User(
-            username=username,
-            role=UserRole.PLAYER,
-            name=name,
-            phone=normalized_phone,
-            email='',
-            whatsapp_number='',
-            country_code=country_code,
-            parent=parent,
-            referred_by=referred_by,
-        )
+    user = User(
+        username=username,
+        role=UserRole.PLAYER,
+        name=name,
+        phone=normalized_phone,
+        email='',
+        whatsapp_number='',
+        country_code=country_code,
+        parent=parent,
+        referred_by=referred_by,
+    )
     user.set_password(password)
     user.save()
 

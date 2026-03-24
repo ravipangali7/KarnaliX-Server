@@ -10,21 +10,18 @@ from django.core.mail import send_mail
 logger = logging.getLogger(__name__)
 
 
-def send_otp_email(to_email: str, otp: str, *, purpose: str = "reset") -> tuple[bool, str]:
+def send_otp_email(to_email: str, otp: str) -> tuple[bool, str]:
     """
-    Send OTP message to the given email (password reset or signup verification).
-    purpose: 'reset' | 'signup'
+    Send OTP message to the given email (e.g. password reset).
+    to_email: recipient address.
+    otp: 6-digit code.
     Returns (success: bool, message: str).
     """
     if not to_email or "@" not in to_email:
         return False, "Invalid email address"
 
-    if purpose == "signup":
-        subject = "Your KarnaliX verification code"
-        message = f"Your KarnaliX verification code: {otp}"
-    else:
-        subject = "Your KarnaliX password reset code"
-        message = f"Your KarnaliX reset code: {otp}"
+    subject = "Your KarnaliX password reset code"
+    message = f"Your KarnaliX reset code: {otp}"
     from_email = (
         getattr(settings, "DEFAULT_FROM_EMAIL", None)
         or getattr(settings, "EMAIL_HOST_USER", None)
