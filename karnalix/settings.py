@@ -221,12 +221,12 @@ EMAIL_HOST_PASSWORD = 'ibidizfnxgtdpywm'
 DEFAULT_FROM_EMAIL = 'no-reply@luckyuser365.com'
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
-# WhatsApp OTP (flexgrew.cloud). Used when SuperSetting has no Flexgrew key, or as defaults.
-# Prefer setting flexgrew_api_key / flexgrew_base_url in Powerhouse Super Settings.
-FLEXGREW_API_KEY = (os.environ.get("FLEXGREW_API_KEY") or "").strip()
-FLEXGREW_BASE_URL = (os.environ.get("FLEXGREW_BASE_URL") or "https://flexgrew.cloud/api").strip()
+# Meta WhatsApp Cloud API — optional fallbacks if Powerhouse Super Settings wa_* fields are empty.
+WA_ACCESS_TOKEN = (os.environ.get("WA_ACCESS_TOKEN") or "").strip()
+WA_PHONE_NUMBER_ID = (os.environ.get("WA_PHONE_NUMBER_ID") or "").strip()
+WA_API_VERSION = (os.environ.get("WA_API_VERSION") or "").strip()
 
-# Meta webhook verify (fallback if SuperSetting.whatsapp_verify_token is empty)
+# Meta webhook verify (fallback if SuperSetting.wa_webhook_verify_token is empty)
 WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', '')
 
 # Default primary key field type

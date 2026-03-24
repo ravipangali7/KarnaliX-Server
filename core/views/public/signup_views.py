@@ -81,10 +81,9 @@ def signup_send_otp(request):
                 return Response(
                     {
                         "detail": (
-                            "This site sends codes only by WhatsApp, but your Meta template cannot include the "
+                            "This site sends codes only by WhatsApp, but the configured Meta template cannot include the "
                             "verification code (e.g. hello_world has no code field). In Powerhouse → Super Settings, "
-                            "create an approved template in Meta with one body variable for the code, enter its name, "
-                            "and turn ON “Send 6-digit OTP as template body parameter”."
+                            "set template name to an approved template whose body has one variable for the 6-digit code."
                         )
                     },
                     status=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -116,8 +115,8 @@ def signup_send_otp(request):
     detail = "OTP sent."
     if channel == "whatsapp" and delivery == "sms":
         detail = (
-            "Your code was sent by text message (SMS). WhatsApp is connected but not set up to show the code in the "
-            "message yet—ask your admin to enable an OTP template in Super Settings."
+            "Your code was sent by text message (SMS). WhatsApp is connected but the template cannot include the "
+            "code yet—ask your admin to set an authentication-style template in Super Settings."
         )
     return Response({"detail": detail, "delivery": delivery})
 

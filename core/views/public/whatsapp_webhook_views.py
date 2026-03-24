@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 
 def _get_verify_token() -> str:
     ss = SuperSetting.get_settings()
-    if ss and (ss.whatsapp_verify_token or "").strip():
-        return (ss.whatsapp_verify_token or "").strip()
+    if ss and (ss.wa_webhook_verify_token or "").strip():
+        return (ss.wa_webhook_verify_token or "").strip()
     return (getattr(settings, "WHATSAPP_VERIFY_TOKEN", None) or "").strip()
 
 
