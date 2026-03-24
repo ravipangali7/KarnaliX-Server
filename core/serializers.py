@@ -115,7 +115,7 @@ class UserListSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'name', 'role', 'role_display', 'parent_username', 'no_activity_7_days',
-            'phone', 'whatsapp_number',
+            'phone', 'whatsapp_number', 'whatsapp_deposit', 'whatsapp_withdraw',
             'main_balance', 'pl_balance', 'bonus_balance', 'exposure_balance', 'exposure_limit',
             'is_active', 'created_at', 'pin',
             'masters_balance', 'masters_pl_balance', 'users_balance',
@@ -212,7 +212,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'name', 'email', 'phone', 'whatsapp_number',
+            'id', 'username', 'name', 'email', 'phone', 'whatsapp_number', 'whatsapp_deposit', 'whatsapp_withdraw',
             'role', 'role_display', 'commission_percentage', 'parent', 'referred_by',
             'main_balance', 'pl_balance', 'bonus_balance', 'exposure_balance', 'exposure_limit',
             'is_active',
@@ -231,7 +231,7 @@ class UserCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'username', 'password', 'name', 'email', 'phone', 'whatsapp_number',
+            'username', 'password', 'name', 'email', 'phone', 'whatsapp_number', 'whatsapp_deposit', 'whatsapp_withdraw',
             'commission_percentage', 'parent', 'role',
             'main_balance', 'bonus_balance', 'exposure_balance', 'exposure_limit',
         ]
@@ -268,6 +268,8 @@ class MeSerializer(serializers.ModelSerializer):
     total_balance = serializers.SerializerMethodField()
     currency_symbol = serializers.SerializerMethodField()
     parent_whatsapp_number = serializers.SerializerMethodField()
+    parent_whatsapp_deposit = serializers.SerializerMethodField()
+    parent_whatsapp_withdraw = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -275,7 +277,9 @@ class MeSerializer(serializers.ModelSerializer):
             'id', 'username', 'name', 'role', 'role_display',
             'main_balance', 'bonus_balance', 'pl_balance', 'exposure_balance', 'exposure_limit',
             'super_balance', 'master_balance', 'player_balance', 'total_balance',
-            'parent', 'whatsapp_number', 'parent_whatsapp_number', 'country_code', 'currency_symbol',
+            'parent', 'whatsapp_number', 'parent_whatsapp_number',
+            'parent_whatsapp_deposit', 'parent_whatsapp_withdraw',
+            'country_code', 'currency_symbol',
             'last_login',
         ]
 
@@ -283,6 +287,18 @@ class MeSerializer(serializers.ModelSerializer):
         if obj.role != UserRole.PLAYER or not obj.parent_id:
             return None
         raw = (getattr(obj.parent, 'whatsapp_number', None) or '').strip()
+        return raw or None
+
+    def get_parent_whatsapp_deposit(self, obj):
+        if obj.role != UserRole.PLAYER or not obj.parent_id:
+            return None
+        raw = (getattr(obj.parent, 'whatsapp_deposit', None) or '').strip()
+        return raw or None
+
+    def get_parent_whatsapp_withdraw(self, obj):
+        if obj.role != UserRole.PLAYER or not obj.parent_id:
+            return None
+        raw = (getattr(obj.parent, 'whatsapp_withdraw', None) or '').strip()
         return raw or None
 
     def get_currency_symbol(self, obj):

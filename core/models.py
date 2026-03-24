@@ -198,6 +198,8 @@ class User(AbstractUser):
     name = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=50, blank=True)
     whatsapp_number = models.CharField(max_length=50, blank=True)
+    whatsapp_deposit = models.CharField(max_length=50, blank=True)
+    whatsapp_withdraw = models.CharField(max_length=50, blank=True)
     country_code = models.CharField(max_length=5, blank=True)
     google_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     pin = models.CharField(max_length=255, blank=True, null=True)

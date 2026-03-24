@@ -85,6 +85,9 @@ def _user_create_response(request, role_type):
         return err
     role_map = {'super': UserRole.SUPER, 'master': UserRole.MASTER, 'player': UserRole.PLAYER}
     data = request.data.copy()
+    if role_type == 'master':
+        data.pop('whatsapp_deposit', None)
+        data.pop('whatsapp_withdraw', None)
     data['role'] = role_map[role_type]
     if role_type == 'super':
         data['parent'] = request.user.id
@@ -259,7 +262,20 @@ def user_update_super(request, pk):
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def user_update_master(request, pk):
-    return _user_update_response(request, 'master', pk)
+    err, qs = _get_queryset(request, 'master')
+    if err:
+        return err
+    obj = qs.filter(pk=pk).first()
+    if not obj:
+        return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+    if request.user.role == UserRole.POWERHOUSE:
+        data.pop('whatsapp_deposit', None)
+        data.pop('whatsapp_withdraw', None)
+    ser = UserCreateUpdateSerializer(obj, data=data, partial=(request.method == 'PATCH'))
+    ser.is_valid(raise_exception=True)
+    ser.save()
+    return Response(UserDetailSerializer(obj).data)
 
 
 @api_view(['PUT', 'PATCH'])
