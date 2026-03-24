@@ -35,6 +35,8 @@ from .models import (
     PaymentMethod,
 )
 from .services.withdraw_eligibility import get_withdraw_eligibility
+from .services.reference_id_validation import validate_reference_id_unique
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 
 # --- Auth ---
@@ -553,6 +555,16 @@ class DepositCreateSerializer(serializers.ModelSerializer):
         model = Deposit
         fields = ['amount', 'payment_mode', 'screenshot', 'remarks', 'reference_id']
 
+    def validate(self, attrs):
+        try:
+            validate_reference_id_unique(attrs.get('reference_id'))
+        except DjangoValidationError as e:
+            err = getattr(e, 'message_dict', None) or getattr(e, 'error_dict', None)
+            if err:
+                raise serializers.ValidationError(err)
+            raise serializers.ValidationError(str(e))
+        return attrs
+
 
 # --- Withdraw ---
 class WithdrawSerializer(serializers.ModelSerializer):
@@ -601,7 +613,7 @@ class WithdrawCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Withdraw
-        fields = ['amount', 'wallet', 'payment_mode', 'screenshot', 'remarks']
+        fields = ['amount', 'wallet', 'payment_mode', 'screenshot', 'remarks', 'reference_id']
 
     def validate(self, attrs):
         request = self.context.get('request')
@@ -641,6 +653,13 @@ class WithdrawCreateSerializer(serializers.ModelSerializer):
                     {'amount': f'Amount exceeds main withdrawable (₹{main_withdrawable}).'}
                 )
         attrs['wallet'] = wallet
+        try:
+            validate_reference_id_unique(attrs.get('reference_id'))
+        except DjangoValidationError as e:
+            err = getattr(e, 'message_dict', None) or getattr(e, 'error_dict', None)
+            if err:
+                raise serializers.ValidationError(err)
+            raise serializers.ValidationError(str(e))
         return attrs
 
 

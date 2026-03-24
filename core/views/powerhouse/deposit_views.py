@@ -4,9 +4,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
+from django.db.models import Q
 from core.permissions import require_role
 from core.models import Deposit, User, UserRole, PaymentMode
 from core.serializers import DepositSerializer, DepositCreateSerializer, PaymentModeSerializer
+from core.services.reference_id_validation import validate_reference_id_unique, validation_error_response
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 
 @api_view(['GET'])
@@ -43,7 +46,7 @@ def deposit_list(request):
     qs = Deposit.objects.all().select_related('user', 'payment_mode', 'processed_by').order_by('-created_at')
     search = request.query_params.get('search', '').strip()
     if search:
-        qs = qs.filter(user__username__icontains=search)
+        qs = qs.filter(Q(user__username__icontains=search) | Q(reference_id__icontains=search))
     status_filter = request.query_params.get('status', '').strip()
     if status_filter:
         qs = qs.filter(status=status_filter)
@@ -78,6 +81,14 @@ def deposit_detail(request, pk):
                 return Response({'detail': 'Amount must be positive.'}, status=status.HTTP_400_BAD_REQUEST)
             obj.amount = new_amount
             update_fields.append('amount')
+        if 'reference_id' in request.data:
+            try:
+                validate_reference_id_unique(
+                    request.data.get('reference_id'),
+                    exclude_deposit_id=obj.pk,
+                )
+            except DjangoValidationError as e:
+                return validation_error_response(e)
         for key in ('remarks', 'reference_id'):
             if key in request.data:
                 val = request.data.get(key)
@@ -145,6 +156,11 @@ def deposit_direct(request):
     ).first()
     if not target_user:
         return Response({'detail': 'User not found or not allowed.'}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        validate_reference_id_unique(reference_id)
+    except DjangoValidationError as e:
+        return validation_error_response(e)
 
     from core.models import Deposit as DepositModel, PaymentMode
     from core.services.deposit_service import approve_deposit

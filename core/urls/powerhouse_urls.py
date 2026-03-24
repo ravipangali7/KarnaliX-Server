@@ -31,9 +31,11 @@ from core.views.powerhouse import (
 from core.views.player import transfer_views
 from core.views.super import statement_views as super_statement_views
 from core.views.super import report_views as super_report_views
+from core.views import reject_suggestions_views
 
 urlpatterns = [
     path('dashboard/', dashboard_views.dashboard),
+    path('reject-reason-suggestions/', reject_suggestions_views.reject_reason_suggestions_list),
     path('supers/', user_views.user_list_supers),
     path('supers/<int:pk>/', user_views.user_detail_supers),
     path('supers/create/', user_views.user_create_super),

@@ -9,6 +9,8 @@ from core.permissions import require_role, get_players_queryset
 from core.models import Withdraw, UserRole
 from core.serializers import WithdrawSerializer
 from core.services.withdraw_service import approve_withdraw
+from core.services.reference_id_validation import validate_reference_id_unique, validation_error_response, normalize_reference_id
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 
 @api_view(['POST'])
@@ -25,6 +27,9 @@ def withdraw_direct(request):
     user_id = request.data.get('user_id')
     amount_raw = request.data.get('amount')
     remarks = request.data.get('remarks', '') or ''
+    reference_id = request.data.get('reference_id', '') or ''
+    if not normalize_reference_id(reference_id):
+        return Response({'detail': 'Transaction/reference id is required.'}, status=status.HTTP_400_BAD_REQUEST)
     if user_id is None:
         return Response({'detail': 'user_id required.'}, status=status.HTTP_400_BAD_REQUEST)
     if amount_raw is None:
@@ -37,7 +42,14 @@ def withdraw_direct(request):
     if not get_players_queryset(request.user).filter(pk=user_id).exists():
         return Response({'detail': 'User not found or not allowed.'}, status=status.HTTP_404_NOT_FOUND)
 
-    wd = Withdraw.objects.create(user_id=user_id, amount=amount, remarks=remarks, status='pending')
+    try:
+        validate_reference_id_unique(reference_id)
+    except DjangoValidationError as e:
+        return validation_error_response(e)
+
+    wd = Withdraw.objects.create(
+        user_id=user_id, amount=amount, remarks=remarks, reference_id=reference_id.strip(), status='pending'
+    )
     ok, msg = approve_withdraw(wd, request.user)
     if not ok:
         wd.delete()
@@ -54,7 +66,7 @@ def withdraw_list(request):
     qs = Withdraw.objects.filter(user__parent=request.user).select_related('user', 'payment_mode').order_by('-created_at')
     search = request.query_params.get('search', '').strip()
     if search:
-        qs = qs.filter(user__username__icontains=search)
+        qs = qs.filter(Q(user__username__icontains=search) | Q(reference_id__icontains=search))
     status_filter = request.query_params.get('status', '').strip()
     if status_filter:
         qs = qs.filter(status=status_filter)
@@ -87,6 +99,16 @@ def withdraw_detail(request, pk):
                 return Response({'detail': 'Amount must be positive.'}, status=status.HTTP_400_BAD_REQUEST)
             obj.amount = new_amount
             update_fields.append('amount')
+        if 'reference_id' in request.data:
+            try:
+                validate_reference_id_unique(
+                    request.data.get('reference_id'),
+                    exclude_withdraw_id=obj.pk,
+                )
+            except DjangoValidationError as e:
+                return validation_error_response(e)
+            obj.reference_id = request.data.get('reference_id') if request.data.get('reference_id') is not None else ''
+            update_fields.append('reference_id')
         if 'remarks' in request.data:
             obj.remarks = request.data.get('remarks') if request.data.get('remarks') is not None else ''
             update_fields.append('remarks')

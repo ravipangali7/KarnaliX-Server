@@ -16,9 +16,14 @@ from core.notification_utils import notify_player_approval
 from core.services.withdraw_eligibility import get_withdraw_eligibility
 
 
+def _withdraw_ref(withdrawal):
+    return (getattr(withdrawal, 'reference_id', None) or '').strip()
+
+
 def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
     user = withdrawal.user
     amount = withdrawal.amount
+    wref = _withdraw_ref(withdrawal)
     if user.role == UserRole.SUPER and processed_by.role == UserRole.POWERHOUSE:
         if (user.main_balance or Decimal('0')) < amount:
             return False, 'Insufficient balance'
@@ -36,6 +41,7 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
             amount=amount,
             status=TransactionStatus.SUCCESS,
             remarks='Withdraw approved',
+            reference_id=wref,
             processed_by=processed_by,
         )
         if user.role == UserRole.PLAYER:
@@ -99,6 +105,7 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
         amount=amount,
         status=TransactionStatus.SUCCESS,
         remarks='Withdraw approved',
+        reference_id=wref,
         processed_by=processed_by,
     )
     Transaction.objects.create(
@@ -110,6 +117,7 @@ def approve_withdraw(withdrawal, processed_by, pin=None, use_password=False):
         status=TransactionStatus.SUCCESS,
         from_user=user,
         remarks='Withdraw from ' + user.username,
+        reference_id=wref,
         processed_by=processed_by,
     )
     if user.role == UserRole.PLAYER:

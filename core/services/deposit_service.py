@@ -25,6 +25,10 @@ from core.models import (
 from core.notification_utils import notify_player_approval
 
 
+def _deposit_ref(deposit):
+    return (getattr(deposit, 'reference_id', None) or '').strip()
+
+
 def get_applicable_deposit_bonus_rule():
     """
     Return the single applicable deposit bonus rule (active, current time within
@@ -58,6 +62,7 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
         deposit.processed_by = processed_by
         deposit.processed_at = timezone.now()
         deposit.save(update_fields=['status', 'processed_by', 'processed_at'])
+        ref = _deposit_ref(deposit)
         Transaction.objects.create(
             user=user,
             action_type=TransactionActionType.IN,
@@ -66,6 +71,7 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
             amount=amount,
             status=TransactionStatus.SUCCESS,
             remarks=f'Deposit #{deposit.pk} approved',
+            reference_id=ref,
             processed_by=processed_by,
         )
         if user.role == UserRole.PLAYER:
@@ -84,6 +90,7 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
     deposit.processed_by = processed_by
     deposit.processed_at = timezone.now()
     deposit.save(update_fields=['status', 'processed_by', 'processed_at'])
+    ref = _deposit_ref(deposit)
     Transaction.objects.create(
         user=parent,
         action_type=TransactionActionType.OUT,
@@ -93,6 +100,7 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
         status=TransactionStatus.SUCCESS,
         to_user=user,
         remarks=f'Deposit #{deposit.pk} for {user.username}',
+        reference_id=ref,
         processed_by=processed_by,
     )
     Transaction.objects.create(
@@ -104,6 +112,7 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
         status=TransactionStatus.SUCCESS,
         from_user=parent,
         remarks=f'Deposit #{deposit.pk} approved',
+        reference_id=ref,
         processed_by=processed_by,
     )
     if user.role == UserRole.PLAYER:
@@ -144,6 +153,7 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
                         status=TransactionStatus.SUCCESS,
                         to_user=user,
                         remarks=f'First deposit bonus for {user.username} (Deposit #{deposit.pk})',
+                        reference_id=ref,
                         processed_by=processed_by,
                     )
                     Transaction.objects.create(
@@ -155,6 +165,7 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
                         status=TransactionStatus.SUCCESS,
                         from_user=parent,
                         remarks=f'First deposit bonus (Deposit #{deposit.pk})',
+                        reference_id=ref,
                         processed_by=processed_by,
                     )
     return True, None

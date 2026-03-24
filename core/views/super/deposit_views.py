@@ -9,6 +9,8 @@ from core.permissions import require_role, get_masters_queryset, get_players_que
 from core.models import Deposit, PaymentMode, User, UserRole
 from core.serializers import DepositSerializer, DepositCreateSerializer, PaymentModeSerializer
 from core.services.deposit_service import approve_deposit
+from core.services.reference_id_validation import validate_reference_id_unique, validation_error_response
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 
 @api_view(['GET'])
@@ -46,7 +48,7 @@ def deposit_list(request):
     ).select_related('user', 'payment_mode').order_by('-created_at')
     search = request.query_params.get('search', '').strip()
     if search:
-        qs = qs.filter(user__username__icontains=search)
+        qs = qs.filter(Q(user__username__icontains=search) | Q(reference_id__icontains=search))
     status_filter = request.query_params.get('status', '').strip()
     if status_filter:
         qs = qs.filter(status=status_filter)
@@ -81,6 +83,14 @@ def deposit_detail(request, pk):
                 return Response({'detail': 'Amount must be positive.'}, status=status.HTTP_400_BAD_REQUEST)
             obj.amount = new_amount
             update_fields.append('amount')
+        if 'reference_id' in request.data:
+            try:
+                validate_reference_id_unique(
+                    request.data.get('reference_id'),
+                    exclude_deposit_id=obj.pk,
+                )
+            except DjangoValidationError as e:
+                return validation_error_response(e)
         for key in ('remarks', 'reference_id'):
             if key in request.data:
                 val = request.data.get(key)
@@ -131,6 +141,11 @@ def deposit_direct(request):
     players_qs = get_players_queryset(request.user).filter(pk=user_id)
     if not masters_qs.exists() and not players_qs.exists():
         return Response({'detail': 'User not found or not allowed.'}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        validate_reference_id_unique(reference_id)
+    except DjangoValidationError as e:
+        return validation_error_response(e)
 
     target = User.objects.filter(pk=user_id).first()
     owner_id = target.parent_id if target and target.role == UserRole.PLAYER else user_id

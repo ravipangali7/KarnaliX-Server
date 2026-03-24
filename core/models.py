@@ -127,6 +127,10 @@ class Country(models.Model):
         return f"{self.name} (+{self.country_code})"
 
 
+def default_reject_reason_suggestions():
+    return {"data": []}
+
+
 # --- 1. SuperSetting ---
 
 class SuperSetting(models.Model):
@@ -152,6 +156,7 @@ class SuperSetting(models.Model):
         related_name='+',
         limit_choices_to={'role': UserRole.MASTER},
     )
+    reject_reason_suggestions = models.JSONField(default=default_reject_reason_suggestions, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -406,6 +411,7 @@ class Withdraw(models.Model):
     processed_at = models.DateTimeField(null=True, blank=True)
     screenshot = models.ImageField(upload_to='withdraw_screenshots/', blank=True, null=True)
     remarks = models.TextField(blank=True)
+    reference_id = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -683,6 +689,7 @@ class Transaction(models.Model):
         blank=True
     )
     remarks = models.TextField(blank=True)
+    reference_id = models.CharField(max_length=255, blank=True)
     processed_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

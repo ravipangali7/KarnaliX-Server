@@ -17,9 +17,11 @@ from core.views.master import (
     report_views,
 )
 from core.views.player import transfer_views
+from core.views import reject_suggestions_views
 
 urlpatterns = [
     path('dashboard/', dashboard_views.dashboard),
+    path('reject-reason-suggestions/', reject_suggestions_views.reject_reason_suggestions_list),
     path('players/', user_views.player_list),
     path('players/<int:pk>/', user_views.player_detail),
     path('players/<int:pk>/report/', user_views.player_report),
