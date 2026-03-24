@@ -23,9 +23,17 @@ def _get_related_transaction(game_log):
 def wallet(request):
     err = require_role(request, [UserRole.PLAYER])
     if err: return err
-    u = request.user
+    u = User.objects.select_related('parent').get(pk=request.user.pk)
     ctx = {'request': request}
     eligibility = get_withdraw_eligibility(u)
+    parent = u.parent
+    master_whatsapp_number = None
+    master_whatsapp_deposit = None
+    master_whatsapp_withdraw = None
+    if parent is not None:
+        master_whatsapp_number = (parent.whatsapp_number or '').strip() or None
+        master_whatsapp_deposit = (getattr(parent, 'whatsapp_deposit', None) or '').strip() or None
+        master_whatsapp_withdraw = (getattr(parent, 'whatsapp_withdraw', None) or '').strip() or None
     return Response({
         'main_balance': str(u.main_balance or 0),
         'bonus_balance': str(u.bonus_balance or 0),
@@ -34,6 +42,9 @@ def wallet(request):
         'total_withdrawable': str(eligibility['total_withdrawable']),
         'can_withdraw_main': eligibility['can_withdraw_main'],
         'can_withdraw_bonus': eligibility['can_withdraw_bonus'],
+        'master_whatsapp_number': master_whatsapp_number,
+        'master_whatsapp_deposit': master_whatsapp_deposit,
+        'master_whatsapp_withdraw': master_whatsapp_withdraw,
         'deposits': DepositSerializer(Deposit.objects.filter(user=u).select_related('payment_mode', 'payment_mode__payment_method').order_by('-created_at')[:50], many=True, context=ctx).data,
         'withdrawals': WithdrawSerializer(Withdraw.objects.filter(user=u).select_related('payment_mode', 'payment_mode__payment_method').order_by('-created_at')[:50], many=True, context=ctx).data,
         'bonus_requests': BonusRequestSerializer(BonusRequest.objects.filter(user=u).select_related('bonus_rule').order_by('-created_at')[:50], many=True, context=ctx).data,

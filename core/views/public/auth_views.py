@@ -67,6 +67,7 @@ def login(request):
             {'detail': 'User account is disabled.'},
             status=status.HTTP_403_FORBIDDEN,
         )
+    user = User.objects.select_related('parent').get(pk=user.pk)
     create_activity_log(user, ActivityAction.LOGIN, request=request)
     country_code = (ser.validated_data.get('country_code') or '').strip()
     if country_code in ('977', '91'):
@@ -142,6 +143,7 @@ def register(request):
     if user.referred_by_id:
         apply_referral_bonus(user.referred_by, user)
 
+    user = User.objects.select_related('parent').get(pk=user.pk)
     SignupSession.objects.filter(token=signup_token).delete()
     token = Token.objects.create(user=user)
     serializer = MeSerializer(user)
@@ -155,7 +157,8 @@ def register(request):
 @permission_classes([IsAuthenticated])
 def me(request):
     """GET current user and header balances."""
-    serializer = MeSerializer(request.user)
+    user = User.objects.select_related('parent').get(pk=request.user.pk)
+    serializer = MeSerializer(user)
     return Response(serializer.data)
 
 
@@ -219,6 +222,7 @@ def google_login(request):
                 {'detail': 'User account is disabled.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        user = User.objects.select_related('parent').get(pk=user.pk)
         create_activity_log(user, ActivityAction.LOGIN, request=request)
         Token.objects.filter(user=user).delete()
         token = Token.objects.create(user=user)
@@ -298,6 +302,7 @@ def google_complete(request):
     )
     user.set_password(password)
     user.save()
+    user = User.objects.select_related('parent').get(pk=user.pk)
     token = Token.objects.create(user=user)
     serializer = MeSerializer(user)
     return Response({
