@@ -1,7 +1,6 @@
 """
 WhatsApp OTP: Meta Cloud API (Graph) using SuperSetting credentials, with Flexgrew fallback.
 """
-import logging
 import re
 import traceback
 
@@ -9,8 +8,6 @@ import requests
 from django.conf import settings
 
 from core.models import SuperSetting
-
-logger = logging.getLogger(__name__)
 
 # Meta sample / fixed templates: no {{1}} body variables — never send template.components.
 META_TEMPLATES_NO_BODY_PARAMS = frozenset(
@@ -36,7 +33,7 @@ def _safe_response_json(r: requests.Response) -> dict | None:
 
 
 def _log_bad_whatsapp_response(where: str, r: requests.Response | None, exc: BaseException | None = None) -> None:
-    """Full detail for ops: stdout (gunicorn journal) + logger."""
+    """Full detail for ops: stdout (gunicorn journal)."""
     parts = [f"[whatsapp_service] {where}"]
     if r is not None:
         parts.append(f"status={r.status_code} url={getattr(r, 'url', '')}")
@@ -47,7 +44,6 @@ def _log_bad_whatsapp_response(where: str, r: requests.Response | None, exc: Bas
         parts.append(traceback.format_exc())
     line = "\n".join(parts)
     print(line, flush=True)
-    logger.error("%s", line[:2000])
 
 
 def _extract_otp_digits(text: str) -> str | None:
@@ -128,13 +124,13 @@ def _verify_meta_access_token(token: str, phone_number_id: str, api_version: str
                 msg = f"{msg} (code {code})"
         else:
             msg = r.text[:300] if r.text else f"HTTP {r.status_code}"
-        logger.warning("Meta token pre-check failed: status=%s", r.status_code)
+        print(f"[whatsapp_service] Meta token pre-check failed: status={r.status_code}", flush=True)
         return False, (
             "WhatsApp access token invalid or expired, or phone number ID is wrong. "
             f"Regenerate the token in Meta (WhatsApp → API Setup). Details: {msg[:200]}"
         )
     except requests.RequestException as e:
-        logger.warning("Meta token pre-check request error: %s", str(e)[:200])
+        print(f"[whatsapp_service] Meta token pre-check request error: {str(e)[:200]}", flush=True)
         return False, getattr(e, "message", str(e)) or "Network error during token check"
 
 
@@ -207,18 +203,21 @@ def _send_via_meta(
             msg = r.text[:500] if r.text else f"HTTP {r.status_code}"
             if not (r.text or "").strip():
                 _log_bad_whatsapp_response("Meta non-200 empty body", r)
-        logger.warning("Meta WhatsApp send failed: %s", msg[:300])
+        print(f"[whatsapp_service] Meta WhatsApp send failed: {msg[:300]}", flush=True)
         return False, msg[:500] if msg else "Failed to send WhatsApp", None
     except requests.RequestException as e:
         _log_bad_whatsapp_response("Meta HTTP error", getattr(e, "response", None), e)
-        logger.warning("Meta WhatsApp request error: %s", str(e)[:200])
+        print(f"[whatsapp_service] Meta WhatsApp request error: {str(e)[:200]}", flush=True)
         return False, getattr(e, "message", str(e)) or "Network error", None
 
 
 def _send_via_flexgrew(to_digits: str, text: str, ss: SuperSetting | None = None) -> tuple[bool, str, None]:
     api_key, base_url = _resolve_flexgrew_config(ss)
     if not api_key:
-        logger.warning("WhatsApp OTP not sent: Flexgrew API key not set (SuperSetting or FLEXGREW_API_KEY).")
+        print(
+            "[whatsapp_service] WhatsApp OTP not sent: Flexgrew API key not set (SuperSetting or FLEXGREW_API_KEY).",
+            flush=True,
+        )
         return False, "WhatsApp OTP not configured", None
 
     phone_e164 = "+" + to_digits
@@ -257,7 +256,7 @@ def _send_via_flexgrew(to_digits: str, text: str, ss: SuperSetting | None = None
                 fj = _safe_response_json(r)
                 err = _flexgrew_error_message(fj) or r.text or f"HTTP {r.status_code}"
                 _log_bad_whatsapp_response("Flexgrew POST /contacts error", r)
-                logger.warning("Flexgrew create contact failed: %s", err[:200])
+                print(f"[whatsapp_service] Flexgrew create contact failed: {err[:200]}", flush=True)
                 return False, (err or "Failed to create contact")[:500], None
             created = _safe_response_json(r)
             if not created:
@@ -282,7 +281,7 @@ def _send_via_flexgrew(to_digits: str, text: str, ss: SuperSetting | None = None
             fj = _safe_response_json(r)
             err = _flexgrew_error_message(fj) or r.text or f"HTTP {r.status_code}"
             _log_bad_whatsapp_response("Flexgrew POST /chats/start error", r)
-            logger.warning("Flexgrew start chat failed: %s", err[:200])
+            print(f"[whatsapp_service] Flexgrew start chat failed: {err[:200]}", flush=True)
             return False, (err or "Failed to start chat")[:500], None
         start_data = _safe_response_json(r)
         if not start_data:
@@ -314,13 +313,13 @@ def _send_via_flexgrew(to_digits: str, text: str, ss: SuperSetting | None = None
             fj = _safe_response_json(r)
             err = _flexgrew_error_message(fj) or r.text or f"HTTP {r.status_code}"
             _log_bad_whatsapp_response("Flexgrew send (template or message) error", r)
-            logger.warning("Flexgrew send failed: %s", err[:200])
+            print(f"[whatsapp_service] Flexgrew send failed: {err[:200]}", flush=True)
             return False, (err or "Failed to send message")[:500], None
 
         return True, "Sent", None
     except requests.RequestException as e:
         _log_bad_whatsapp_response("Flexgrew HTTP error", getattr(e, "response", None), e)
-        logger.warning("WhatsApp OTP request error: %s", str(e)[:200])
+        print(f"[whatsapp_service] WhatsApp OTP request error: {str(e)[:200]}", flush=True)
         return False, getattr(e, "message", str(e)) or "Network error", None
 
 
@@ -364,6 +363,14 @@ def send_whatsapp_otp(to: str, text: str) -> tuple[bool, str, str | None]:
             api_ver = (ss.whatsapp_api_version or "v22.0").strip()
             ok_tok, tok_msg = _verify_meta_access_token(token, phone_id, api_ver)
             if not ok_tok:
+                flex_key, _ = _resolve_flexgrew_config(ss)
+                if flex_key:
+                    print(
+                        f"[whatsapp_service] Meta token check failed; sending OTP via Flexgrew. "
+                        f"{(tok_msg or '')[:200]}",
+                        flush=True,
+                    )
+                    return _send_via_flexgrew(to_digits, text, ss)
                 return False, tok_msg, None
             return _send_via_meta(
                 to_digits,
