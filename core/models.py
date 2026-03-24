@@ -157,6 +157,13 @@ class SuperSetting(models.Model):
         limit_choices_to={'role': UserRole.MASTER},
     )
     reject_reason_suggestions = models.JSONField(default=default_reject_reason_suggestions, blank=True)
+    # Meta WhatsApp Cloud API (OTP on signup / forgot-password). Bearer token + phone number ID from Meta.
+    whatsapp_secret_key = models.TextField(blank=True)
+    whatsapp_phone_number_id = models.CharField(max_length=64, blank=True)
+    whatsapp_api_version = models.CharField(max_length=32, blank=True, default='v22.0')
+    whatsapp_otp_template_name = models.CharField(max_length=255, blank=True)
+    whatsapp_otp_template_language = models.CharField(max_length=32, blank=True, default='en_US')
+    whatsapp_otp_template_body_param = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
