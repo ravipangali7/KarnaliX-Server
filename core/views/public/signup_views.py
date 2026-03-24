@@ -77,7 +77,13 @@ def signup_send_otp(request):
     if channel == "whatsapp":
         ss = SuperSetting.get_settings()
         if not meta_settings_deliver_otp_in_message(ss):
+            tmpl = (ss.wa_template_name or "").strip() if ss else ""
             if should_use_whatsapp_instead_of_sms(request):
+                print(
+                    "[signup_send_otp] WhatsApp-only host: Meta template cannot include OTP in message "
+                    f"(wa_template_name={tmpl!r}). Returning 503.",
+                    flush=True,
+                )
                 return Response(
                     {
                         "detail": (
@@ -88,6 +94,11 @@ def signup_send_otp(request):
                     },
                     status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 )
+            print(
+                "[signup_send_otp] WhatsApp requested but Meta template cannot include OTP in message "
+                f"(wa_template_name={tmpl!r}); falling back to SMS.",
+                flush=True,
+            )
             delivery = "sms"
 
     SignupOTP.objects.filter(phone=normalized).delete()
