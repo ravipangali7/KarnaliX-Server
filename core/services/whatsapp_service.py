@@ -3,6 +3,7 @@ WhatsApp OTP: Meta Cloud API (Graph) using SuperSetting credentials, with Flexgr
 """
 import re
 import traceback
+from urllib.parse import urlunparse, urlparse
 
 import requests
 from django.conf import settings
@@ -59,6 +60,60 @@ def _settings_flexgrew_base_url() -> str:
     return (getattr(settings, "FLEXGREW_BASE_URL", None) or "").strip()
 
 
+def _normalize_flexgrew_base_url(url: str) -> str:
+    """
+    Ensure host-only URLs use /api (Flexgrew docs: base https://flexgrew.cloud/api).
+    e.g. https://flexgrew.cloud -> https://flexgrew.cloud/api
+    """
+    url = (url or "").strip().rstrip("/")
+    if not url:
+        return "https://flexgrew.cloud/api"
+    p = urlparse(url)
+    if not p.scheme or not p.netloc:
+        return url
+    path = (p.path or "").strip("/")
+    if not path:
+        p2 = p._replace(path="/api", params="", query="", fragment="")
+        return urlunparse(p2).rstrip("/")
+    return url
+
+
+FLEXGREW_HTML_BODY = (
+    "Flexgrew returned the website (HTML) instead of the JSON API. "
+    "Confirm the base URL is https://flexgrew.cloud/api (or your provider's API root) "
+    "and that the API is reachable from this server."
+)
+
+
+def _flexgrew_response_looks_like_html(r: requests.Response) -> bool:
+    ct = (r.headers.get("Content-Type") or "").lower()
+    if "text/html" in ct:
+        return True
+    raw = (r.text or "").lstrip()[:500]
+    low = raw.lower()
+    return low.startswith("<!doctype") or low.startswith("<html")
+
+
+def _flexgrew_public_error(r: requests.Response, fj: dict | None) -> str:
+    if _flexgrew_response_looks_like_html(r):
+        return FLEXGREW_HTML_BODY
+    return (
+        _flexgrew_error_message(fj) or (r.text or "")[:400] or f"HTTP {r.status_code}"
+    )[:500]
+
+
+def _log_flexgrew_bad_response(where: str, r: requests.Response | None, exc: BaseException | None = None) -> None:
+    if r is not None and _flexgrew_response_looks_like_html(r):
+        print(
+            f"[whatsapp_service] {where} status={r.status_code} url={getattr(r, 'url', '')} body=<HTML omitted>",
+            flush=True,
+        )
+        if exc is not None:
+            print(f"[whatsapp_service] exc={exc!r}\n{traceback.format_exc()}", flush=True)
+        return
+    _log_bad_whatsapp_response(where, r, exc)
+
+
 def _resolve_flexgrew_config(ss: SuperSetting | None) -> tuple[str, str]:
     """API key and base URL: SuperSetting first, then Django settings."""
     key = ""
@@ -72,6 +127,7 @@ def _resolve_flexgrew_config(ss: SuperSetting | None) -> tuple[str, str]:
         base = _settings_flexgrew_base_url()
     if not base:
         base = "https://flexgrew.cloud/api"
+    base = _normalize_flexgrew_base_url(base)
     return key, base.rstrip("/")
 
 
@@ -224,6 +280,7 @@ def _send_via_flexgrew(to_digits: str, text: str, ss: SuperSetting | None = None
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
+        "Accept": "application/json",
     }
     template_id = _flexgrew_template_id_as_int(ss)
 
@@ -235,10 +292,21 @@ def _send_via_flexgrew(to_digits: str, text: str, ss: SuperSetting | None = None
             headers=headers,
             timeout=15,
         )
+        if r.status_code in (401, 403):
+            fj = _safe_response_json(r)
+            err = _flexgrew_public_error(r, fj)
+            print(f"[whatsapp_service] Flexgrew GET /contacts auth failed: {err[:200]}", flush=True)
+            return False, err, None
+        if r.status_code != 200 and _flexgrew_response_looks_like_html(r):
+            print(
+                "[whatsapp_service] Flexgrew GET /contacts returned HTML (wrong base URL or API routing)",
+                flush=True,
+            )
+            return False, FLEXGREW_HTML_BODY, None
         if r.status_code == 200:
             data = _safe_response_json(r)
             if data is None:
-                _log_bad_whatsapp_response("Flexgrew GET /contacts 200 non-JSON", r)
+                _log_flexgrew_bad_response("Flexgrew GET /contacts 200 non-JSON", r)
                 return False, "WhatsApp provider returned invalid response (not JSON)", None
             for c in data.get("data") or []:
                 if (c.get("phone") or "").replace(" ", "") == phone_e164:
@@ -254,13 +322,13 @@ def _send_via_flexgrew(to_digits: str, text: str, ss: SuperSetting | None = None
             )
             if r.status_code not in (200, 201):
                 fj = _safe_response_json(r)
-                err = _flexgrew_error_message(fj) or r.text or f"HTTP {r.status_code}"
-                _log_bad_whatsapp_response("Flexgrew POST /contacts error", r)
+                err = _flexgrew_public_error(r, fj)
+                _log_flexgrew_bad_response("Flexgrew POST /contacts error", r)
                 print(f"[whatsapp_service] Flexgrew create contact failed: {err[:200]}", flush=True)
-                return False, (err or "Failed to create contact")[:500], None
+                return False, err or "Failed to create contact", None
             created = _safe_response_json(r)
             if not created:
-                _log_bad_whatsapp_response("Flexgrew POST /contacts 200 empty or non-JSON", r)
+                _log_flexgrew_bad_response("Flexgrew POST /contacts 200 empty or non-JSON", r)
                 return False, "WhatsApp provider returned invalid response (not JSON)", None
             contact_id = created.get("id")
             if not contact_id:
@@ -279,13 +347,13 @@ def _send_via_flexgrew(to_digits: str, text: str, ss: SuperSetting | None = None
         )
         if r.status_code not in (200, 201):
             fj = _safe_response_json(r)
-            err = _flexgrew_error_message(fj) or r.text or f"HTTP {r.status_code}"
-            _log_bad_whatsapp_response("Flexgrew POST /chats/start error", r)
+            err = _flexgrew_public_error(r, fj)
+            _log_flexgrew_bad_response("Flexgrew POST /chats/start error", r)
             print(f"[whatsapp_service] Flexgrew start chat failed: {err[:200]}", flush=True)
-            return False, (err or "Failed to start chat")[:500], None
+            return False, err or "Failed to start chat", None
         start_data = _safe_response_json(r)
         if not start_data:
-            _log_bad_whatsapp_response("Flexgrew POST /chats/start 200 empty or non-JSON", r)
+            _log_flexgrew_bad_response("Flexgrew POST /chats/start 200 empty or non-JSON", r)
             return False, "WhatsApp provider returned invalid response (not JSON)", None
         chat_uuid = start_data.get("uuid")
         if not chat_uuid:
@@ -311,14 +379,14 @@ def _send_via_flexgrew(to_digits: str, text: str, ss: SuperSetting | None = None
             )
         if r.status_code not in (200, 201):
             fj = _safe_response_json(r)
-            err = _flexgrew_error_message(fj) or r.text or f"HTTP {r.status_code}"
-            _log_bad_whatsapp_response("Flexgrew send (template or message) error", r)
+            err = _flexgrew_public_error(r, fj)
+            _log_flexgrew_bad_response("Flexgrew send (template or message) error", r)
             print(f"[whatsapp_service] Flexgrew send failed: {err[:200]}", flush=True)
-            return False, (err or "Failed to send message")[:500], None
+            return False, err or "Failed to send message", None
 
         return True, "Sent", None
     except requests.RequestException as e:
-        _log_bad_whatsapp_response("Flexgrew HTTP error", getattr(e, "response", None), e)
+        _log_flexgrew_bad_response("Flexgrew HTTP error", getattr(e, "response", None), e)
         print(f"[whatsapp_service] WhatsApp OTP request error: {str(e)[:200]}", flush=True)
         return False, getattr(e, "message", str(e)) or "Network error", None
 
