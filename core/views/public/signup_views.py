@@ -106,7 +106,7 @@ def signup_send_otp(request):
     expires_at = now + timedelta(minutes=10)
     signup_otp = SignupOTP.objects.create(phone=normalized, otp=otp, expires_at=expires_at)
 
-    text = f"Your KarnaliX verification code: {otp}"
+    text = f"Your LuckyUser365 verification code: {otp}"
     waba_id = None
     if delivery == "whatsapp":
         ok, msg, waba_id = send_whatsapp_otp(normalized, text)

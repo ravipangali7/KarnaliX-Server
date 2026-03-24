@@ -1,6 +1,7 @@
 """
 WhatsApp OTP: Meta Cloud API (Graph) using SuperSetting wa_* fields or WA_* env.
 """
+import json
 import re
 import traceback
 
@@ -40,6 +41,40 @@ def _log_bad_whatsapp_response(where: str, r: requests.Response | None, exc: Bas
         parts.append(f"exc={exc!r}")
         parts.append(traceback.format_exc())
     print("\n".join(parts), flush=True)
+
+
+def _print_meta_full_response(
+    where: str,
+    r: requests.Response,
+    request_url: str,
+    request_payload: dict | None = None,
+) -> None:
+    """Print full Meta Graph response for ops (redacts Authorization)."""
+    lines = [
+        f"[whatsapp_service] Meta Graph full response — {where}",
+        f"request_url={request_url}",
+    ]
+    if request_payload is not None:
+        try:
+            lines.append(f"request_payload={json.dumps(request_payload, ensure_ascii=False)}")
+        except (TypeError, ValueError):
+            lines.append(f"request_payload={request_payload!r}")
+    lines.append(f"response_http_status={r.status_code}")
+    lines.append(f"response_final_url={getattr(r, 'url', '')}")
+    for hk, hv in (r.headers or {}).items():
+        if hk.lower() in ("authorization", "proxy-authorization", "www-authenticate"):
+            hv = "<redacted>"
+        lines.append(f"response_header {hk}: {hv}")
+    raw = r.text or ""
+    lines.append("response_body_raw:")
+    lines.append(raw if raw else "<empty>")
+    try:
+        parsed = r.json()
+        lines.append("response_body_json:")
+        lines.append(json.dumps(parsed, ensure_ascii=False, indent=2))
+    except ValueError:
+        lines.append("response_body_json: <not JSON>")
+    print("\n".join(lines), flush=True)
 
 
 def _extract_otp_digits(text: str) -> str | None:
@@ -132,6 +167,7 @@ def _send_meta_template(
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=20)
         if r.status_code == 200:
+            _print_meta_full_response("send template SUCCESS", r, url, payload)
             data_ok = _safe_response_json(r)
             waba_id = None
             if data_ok:
@@ -139,6 +175,7 @@ def _send_meta_template(
                 if isinstance(msgs, list) and msgs and isinstance(msgs[0], dict):
                     waba_id = (msgs[0].get("id") or "").strip() or None
             return True, "Sent", waba_id
+        _print_meta_full_response("send template ERROR (non-200)", r, url, payload)
         data = _safe_response_json(r)
         if data and isinstance(data.get("error"), dict):
             err = data["error"]
@@ -150,11 +187,15 @@ def _send_meta_template(
             msg = r.text[:500] if r.text else f"HTTP {r.status_code}"
             if not (r.text or "").strip():
                 _log_bad_whatsapp_response("Meta non-200 empty body", r)
-        print(f"[whatsapp_service] Meta WhatsApp send failed: {msg[:300]}", flush=True)
         return False, msg[:500] if msg else "Failed to send WhatsApp", None
     except requests.RequestException as e:
-        _log_bad_whatsapp_response("Meta HTTP error", getattr(e, "response", None), e)
-        print(f"[whatsapp_service] Meta WhatsApp request error: {str(e)[:200]}", flush=True)
+        print(f"[whatsapp_service] Meta WhatsApp request exception: {e!r}", flush=True)
+        print(traceback.format_exc(), flush=True)
+        resp = getattr(e, "response", None)
+        if resp is not None:
+            _print_meta_full_response("send template EXCEPTION (has response)", resp, url, payload)
+        elif resp is None:
+            _log_bad_whatsapp_response("Meta HTTP error (no response object)", None, e)
         return False, getattr(e, "message", str(e)) or "Network error", None
 
 
