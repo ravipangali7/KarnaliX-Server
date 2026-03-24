@@ -14,6 +14,7 @@ from rest_framework import status
 from core.models import User, SignupOTP, SignupSession
 from core.services.sms_service import send_sms
 from core.services.whatsapp_service import send_whatsapp_otp
+from core.utils.otp_host_policy import should_use_whatsapp_instead_of_sms
 
 
 def normalize_phone(phone: str) -> str:
@@ -56,6 +57,8 @@ def signup_send_otp(request):
     channel = (request.data.get("channel") or "sms").strip().lower()
     if channel not in ("sms", "whatsapp"):
         channel = "sms"
+    if channel == "sms" and should_use_whatsapp_instead_of_sms(request):
+        channel = "whatsapp"
     normalized = normalize_phone(phone)
     if not normalized or len(normalized) < 10:
         return Response({"detail": "Invalid phone number."}, status=status.HTTP_400_BAD_REQUEST)
@@ -82,6 +85,8 @@ def signup_send_otp(request):
         ok, msg = send_sms(normalized, text)
     if not ok:
         if channel == "whatsapp" and "not configured" in (msg or "").lower():
+            if should_use_whatsapp_instead_of_sms(request):
+                return Response({"detail": msg or "WhatsApp OTP is not configured."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             return Response({"detail": msg or "WhatsApp OTP not configured. Try SMS."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response({"detail": msg or "Failed to send OTP."}, status=status.HTTP_502_BAD_GATEWAY)
     return Response({"detail": "OTP sent."})

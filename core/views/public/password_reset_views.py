@@ -15,6 +15,7 @@ from core.models import User, PasswordResetOTP, SiteSetting
 from core.services.email_service import send_otp_email
 from core.services.sms_service import send_sms
 from core.services.whatsapp_service import send_whatsapp_otp
+from core.utils.otp_host_policy import should_use_whatsapp_instead_of_sms
 
 
 def _mask_phone(phone):
@@ -98,6 +99,8 @@ def forgot_password_send_otp(request):
     channel = (request.data.get("channel") or "").strip().lower()
     if channel not in ("phone", "email", "whatsapp"):
         return Response({"detail": "channel must be 'phone', 'email', or 'whatsapp'."}, status=status.HTTP_400_BAD_REQUEST)
+    if channel == "phone" and should_use_whatsapp_instead_of_sms(request):
+        channel = "whatsapp"
 
     user = User.objects.filter(pk=user_id).first()
     if not user:
