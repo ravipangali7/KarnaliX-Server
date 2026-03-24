@@ -3,6 +3,7 @@ WhatsApp OTP: Meta Cloud API (Graph) using SuperSetting credentials, with Flexgr
 """
 import logging
 import re
+import traceback
 
 import requests
 from django.conf import settings
@@ -10,6 +11,34 @@ from django.conf import settings
 from core.models import SuperSetting
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_response_json(r: requests.Response) -> dict | None:
+    """Parse JSON body; never raise. Empty or non-JSON bodies return None."""
+    raw = (r.text or "").strip()
+    if not raw:
+        return None
+    try:
+        out = r.json()
+        return out if isinstance(out, dict) else None
+    except ValueError:
+        # requests may raise JSONDecodeError (subclass of ValueError) on empty/non-JSON body
+        return None
+
+
+def _log_bad_whatsapp_response(where: str, r: requests.Response | None, exc: BaseException | None = None) -> None:
+    """Full detail for ops: stdout (gunicorn journal) + logger."""
+    parts = [f"[whatsapp_service] {where}"]
+    if r is not None:
+        parts.append(f"status={r.status_code} url={getattr(r, 'url', '')}")
+        body = (r.text or "")[:4000]
+        parts.append(f"body={body!r}")
+    if exc is not None:
+        parts.append(f"exc={exc!r}")
+        parts.append(traceback.format_exc())
+    line = "\n".join(parts)
+    print(line, flush=True)
+    logger.error("%s", line[:2000])
 
 
 def _extract_otp_digits(text: str) -> str | None:
@@ -69,17 +98,21 @@ def _send_via_meta(
         r = requests.post(url, headers=headers, json=payload, timeout=20)
         if r.status_code == 200:
             return True, "Sent"
-        try:
-            err = r.json().get("error") or {}
+        data = _safe_response_json(r)
+        if data and isinstance(data.get("error"), dict):
+            err = data["error"]
             msg = err.get("message") or r.text or f"HTTP {r.status_code}"
             code = err.get("code")
             if code is not None:
                 msg = f"{msg} (code {code})"
-        except Exception:
+        else:
             msg = r.text[:500] if r.text else f"HTTP {r.status_code}"
+            if not (r.text or "").strip():
+                _log_bad_whatsapp_response("Meta non-200 empty body", r)
         logger.warning("Meta WhatsApp send failed: %s", msg[:300])
         return False, msg[:500] if msg else "Failed to send WhatsApp"
     except requests.RequestException as e:
+        _log_bad_whatsapp_response("Meta HTTP error", getattr(e, "response", None), e)
         logger.warning("Meta WhatsApp request error: %s", str(e)[:200])
         return False, getattr(e, "message", str(e)) or "Network error"
 
@@ -106,7 +139,10 @@ def _send_via_flexgrew(to_digits: str, text: str) -> tuple[bool, str]:
             timeout=15,
         )
         if r.status_code == 200:
-            data = r.json()
+            data = _safe_response_json(r)
+            if data is None:
+                _log_bad_whatsapp_response("Flexgrew GET /contacts 200 non-JSON", r)
+                return False, "WhatsApp provider returned invalid response (not JSON)"
             for c in data.get("data") or []:
                 if (c.get("phone") or "").replace(" ", "") == phone_e164:
                     contact_id = c.get("id")
@@ -120,10 +156,17 @@ def _send_via_flexgrew(to_digits: str, text: str) -> tuple[bool, str]:
                 timeout=15,
             )
             if r.status_code not in (200, 201):
-                err = (r.json() or {}).get("message") or r.text or f"HTTP {r.status_code}"
+                fj = _safe_response_json(r)
+                err = (fj or {}).get("message") if fj else None
+                err = err or r.text or f"HTTP {r.status_code}"
+                _log_bad_whatsapp_response("Flexgrew POST /contacts error", r)
                 logger.warning("Flexgrew create contact failed: %s", err[:200])
-                return False, err or "Failed to create contact"
-            contact_id = r.json().get("id")
+                return False, (err or "Failed to create contact")[:500]
+            created = _safe_response_json(r)
+            if not created:
+                _log_bad_whatsapp_response("Flexgrew POST /contacts 200 empty or non-JSON", r)
+                return False, "WhatsApp provider returned invalid response (not JSON)"
+            contact_id = created.get("id")
             if not contact_id:
                 return False, "Invalid contact response"
 
@@ -134,10 +177,17 @@ def _send_via_flexgrew(to_digits: str, text: str) -> tuple[bool, str]:
             timeout=15,
         )
         if r.status_code not in (200, 201):
-            err = (r.json() or {}).get("message") or r.text or f"HTTP {r.status_code}"
+            fj = _safe_response_json(r)
+            err = (fj or {}).get("message") if fj else None
+            err = err or r.text or f"HTTP {r.status_code}"
+            _log_bad_whatsapp_response("Flexgrew POST /chats/start error", r)
             logger.warning("Flexgrew start chat failed: %s", err[:200])
-            return False, err or "Failed to start chat"
-        chat_uuid = (r.json() or {}).get("uuid")
+            return False, (err or "Failed to start chat")[:500]
+        start_data = _safe_response_json(r)
+        if not start_data:
+            _log_bad_whatsapp_response("Flexgrew POST /chats/start 200 empty or non-JSON", r)
+            return False, "WhatsApp provider returned invalid response (not JSON)"
+        chat_uuid = start_data.get("uuid")
         if not chat_uuid:
             return False, "Invalid chat response"
 
@@ -148,12 +198,16 @@ def _send_via_flexgrew(to_digits: str, text: str) -> tuple[bool, str]:
             timeout=15,
         )
         if r.status_code not in (200, 201):
-            err = (r.json() or {}).get("message") or r.text or f"HTTP {r.status_code}"
+            fj = _safe_response_json(r)
+            err = (fj or {}).get("message") if fj else None
+            err = err or r.text or f"HTTP {r.status_code}"
+            _log_bad_whatsapp_response("Flexgrew POST messages error", r)
             logger.warning("Flexgrew send message failed: %s", err[:200])
-            return False, err or "Failed to send message"
+            return False, (err or "Failed to send message")[:500]
 
         return True, "Sent"
     except requests.RequestException as e:
+        _log_bad_whatsapp_response("Flexgrew HTTP error", getattr(e, "response", None), e)
         logger.warning("WhatsApp OTP request error: %s", str(e)[:200])
         return False, getattr(e, "message", str(e)) or "Network error"
 
