@@ -55,8 +55,43 @@ def _extract_otp_digits(text: str) -> str | None:
     return m.group(1) if m else None
 
 
-def _get_flexgrew_api_key() -> str:
+def _settings_flexgrew_api_key() -> str:
     return (getattr(settings, "FLEXGREW_API_KEY", None) or "").strip()
+
+
+def _settings_flexgrew_base_url() -> str:
+    return (getattr(settings, "FLEXGREW_BASE_URL", None) or "").strip()
+
+
+def _resolve_flexgrew_config(ss: SuperSetting | None) -> tuple[str, str]:
+    """API key and base URL: SuperSetting first, then Django settings."""
+    key = ""
+    base = ""
+    if ss:
+        key = (ss.flexgrew_api_key or "").strip()
+        base = (ss.flexgrew_base_url or "").strip()
+    if not key:
+        key = _settings_flexgrew_api_key()
+    if not base:
+        base = _settings_flexgrew_base_url()
+    if not base:
+        base = "https://flexgrew.cloud/api"
+    return key, base.rstrip("/")
+
+
+def _flexgrew_error_message(fj: dict | None) -> str:
+    if not fj:
+        return ""
+    msg = fj.get("message")
+    if isinstance(msg, str) and msg.strip():
+        return msg.strip()
+    err = fj.get("error")
+    if isinstance(err, str) and err.strip():
+        return err.strip()
+    sc = fj.get("statusCode")
+    if sc is not None:
+        return f"Error {sc}"
+    return ""
 
 
 def _verify_meta_access_token(token: str, phone_number_id: str, api_version: str) -> tuple[bool, str]:
@@ -167,18 +202,18 @@ def _send_via_meta(
         return False, getattr(e, "message", str(e)) or "Network error", None
 
 
-def _send_via_flexgrew(to_digits: str, text: str) -> tuple[bool, str, None]:
-    api_key = _get_flexgrew_api_key()
+def _send_via_flexgrew(to_digits: str, text: str, ss: SuperSetting | None = None) -> tuple[bool, str, None]:
+    api_key, base_url = _resolve_flexgrew_config(ss)
     if not api_key:
-        logger.warning("WhatsApp OTP not sent: FLEXGREW_API_KEY not set in settings.")
+        logger.warning("WhatsApp OTP not sent: Flexgrew API key not set (SuperSetting or FLEXGREW_API_KEY).")
         return False, "WhatsApp OTP not configured", None
 
     phone_e164 = "+" + to_digits
-    base_url = (getattr(settings, "FLEXGREW_BASE_URL", None) or "").rstrip("/") or "https://flexgrew.cloud/api"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
+    template_id = int(ss.flexgrew_otp_template_id) if (ss and ss.flexgrew_otp_template_id is not None) else None
 
     try:
         contact_id = None
@@ -207,8 +242,7 @@ def _send_via_flexgrew(to_digits: str, text: str) -> tuple[bool, str, None]:
             )
             if r.status_code not in (200, 201):
                 fj = _safe_response_json(r)
-                err = (fj or {}).get("message") if fj else None
-                err = err or r.text or f"HTTP {r.status_code}"
+                err = _flexgrew_error_message(fj) or r.text or f"HTTP {r.status_code}"
                 _log_bad_whatsapp_response("Flexgrew POST /contacts error", r)
                 logger.warning("Flexgrew create contact failed: %s", err[:200])
                 return False, (err or "Failed to create contact")[:500], None
@@ -220,16 +254,20 @@ def _send_via_flexgrew(to_digits: str, text: str) -> tuple[bool, str, None]:
             if not contact_id:
                 return False, "Invalid contact response", None
 
+        try:
+            cid = int(contact_id)
+        except (TypeError, ValueError):
+            return False, "Invalid contact id from Flexgrew", None
+
         r = requests.post(
             f"{base_url}/chats/start",
             headers=headers,
-            json={"contactId": contact_id},
+            json={"contactId": cid},
             timeout=15,
         )
         if r.status_code not in (200, 201):
             fj = _safe_response_json(r)
-            err = (fj or {}).get("message") if fj else None
-            err = err or r.text or f"HTTP {r.status_code}"
+            err = _flexgrew_error_message(fj) or r.text or f"HTTP {r.status_code}"
             _log_bad_whatsapp_response("Flexgrew POST /chats/start error", r)
             logger.warning("Flexgrew start chat failed: %s", err[:200])
             return False, (err or "Failed to start chat")[:500], None
@@ -241,18 +279,29 @@ def _send_via_flexgrew(to_digits: str, text: str) -> tuple[bool, str, None]:
         if not chat_uuid:
             return False, "Invalid chat response", None
 
-        r = requests.post(
-            f"{base_url}/chats/{chat_uuid}/messages",
-            headers=headers,
-            json={"message": text, "type": "text"},
-            timeout=15,
-        )
+        if template_id is not None:
+            otp = _extract_otp_digits(text)
+            if not otp:
+                return False, "Could not extract 6-digit OTP for Flexgrew template", None
+            payload = {"templateId": template_id, "variables": {"1": otp}}
+            r = requests.post(
+                f"{base_url}/chats/{chat_uuid}/template",
+                headers=headers,
+                json=payload,
+                timeout=20,
+            )
+        else:
+            r = requests.post(
+                f"{base_url}/chats/{chat_uuid}/messages",
+                headers=headers,
+                json={"message": text, "type": "text"},
+                timeout=15,
+            )
         if r.status_code not in (200, 201):
             fj = _safe_response_json(r)
-            err = (fj or {}).get("message") if fj else None
-            err = err or r.text or f"HTTP {r.status_code}"
-            _log_bad_whatsapp_response("Flexgrew POST messages error", r)
-            logger.warning("Flexgrew send message failed: %s", err[:200])
+            err = _flexgrew_error_message(fj) or r.text or f"HTTP {r.status_code}"
+            _log_bad_whatsapp_response("Flexgrew send (template or message) error", r)
+            logger.warning("Flexgrew send failed: %s", err[:200])
             return False, (err or "Failed to send message")[:500], None
 
         return True, "Sent", None
@@ -285,7 +334,7 @@ def send_whatsapp_otp(to: str, text: str) -> tuple[bool, str, str | None]:
     """
     Send OTP-related message via WhatsApp.
     Prefers Meta Cloud API when SuperSetting has token + phone number id + template name.
-    Falls back to Flexgrew when FLEXGREW_API_KEY is set.
+    Falls back to Flexgrew when SuperSetting or FLEXGREW_API_KEY has a Flexgrew API key.
     to: digits with country code, e.g. 9779812345678.
     text: message body (used by Flexgrew; Meta template mode extracts 6-digit OTP when body param enabled).
     Returns (success: bool, message: str, waba_message_id or None).
@@ -314,4 +363,4 @@ def send_whatsapp_otp(to: str, text: str) -> tuple[bool, str, str | None]:
                 body_param=bool(ss.whatsapp_otp_template_body_param),
             )
 
-    return _send_via_flexgrew(to_digits, text)
+    return _send_via_flexgrew(to_digits, text, ss)

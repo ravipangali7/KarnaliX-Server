@@ -165,6 +165,10 @@ class SuperSetting(models.Model):
     whatsapp_otp_template_language = models.CharField(max_length=32, blank=True, default='en_US')
     whatsapp_otp_template_body_param = models.BooleanField(default=False)
     whatsapp_verify_token = models.CharField(max_length=255, blank=True)
+    # Flexgrew WhatsApp API (fallback when Meta Cloud fields above are not set). See flexgrew.cloud API docs.
+    flexgrew_api_key = models.TextField(blank=True)
+    flexgrew_base_url = models.CharField(max_length=512, blank=True)
+    flexgrew_otp_template_id = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
