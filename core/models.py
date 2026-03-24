@@ -163,7 +163,7 @@ class SuperSetting(models.Model):
     whatsapp_api_version = models.CharField(max_length=32, blank=True, default='v22.0')
     whatsapp_otp_template_name = models.CharField(max_length=255, blank=True)
     whatsapp_otp_template_language = models.CharField(max_length=32, blank=True, default='en_US')
-    whatsapp_otp_template_body_param = models.BooleanField(default=True)
+    whatsapp_otp_template_body_param = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

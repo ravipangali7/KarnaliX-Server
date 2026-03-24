@@ -12,6 +12,15 @@ from core.models import SuperSetting
 
 logger = logging.getLogger(__name__)
 
+# Meta sample / fixed templates: no {{1}} body variables — never send template.components.
+META_TEMPLATES_NO_BODY_PARAMS = frozenset(
+    {
+        "hello_world",
+        "sample_shipping_confirmation",
+        "sample_issue_resolution",
+    }
+)
+
 
 def _safe_response_json(r: requests.Response) -> dict | None:
     """Parse JSON body; never raise. Empty or non-JSON bodies return None."""
@@ -71,6 +80,10 @@ def _send_via_meta(
     name = (template_name or "").strip()
     if not name:
         return False, "WhatsApp OTP template name not configured"
+
+    name_lower = name.lower()
+    if name_lower in META_TEMPLATES_NO_BODY_PARAMS:
+        body_param = False
 
     template: dict = {
         "name": name,
@@ -210,6 +223,25 @@ def _send_via_flexgrew(to_digits: str, text: str) -> tuple[bool, str]:
         _log_bad_whatsapp_response("Flexgrew HTTP error", getattr(e, "response", None), e)
         logger.warning("WhatsApp OTP request error: %s", str(e)[:200])
         return False, getattr(e, "message", str(e)) or "Network error"
+
+
+def meta_settings_deliver_otp_in_message(ss: SuperSetting | None) -> bool:
+    """
+    True if Meta is configured to include the 6-digit OTP in the WhatsApp message.
+    When False (e.g. hello_world or body param off), use SMS fallback on sites that allow SMS,
+    or block with 503 on WhatsApp-only sites.
+    Flexgrew-only setups (no Meta token+phone id) are treated as delivering the full text.
+    """
+    if not ss:
+        return True
+    token = (ss.whatsapp_secret_key or "").strip()
+    phone_id = (ss.whatsapp_phone_number_id or "").strip()
+    if not (token and phone_id):
+        return True
+    name = (ss.whatsapp_otp_template_name or "").strip().lower()
+    if name in META_TEMPLATES_NO_BODY_PARAMS:
+        return False
+    return bool(ss.whatsapp_otp_template_body_param)
 
 
 def send_whatsapp_otp(to: str, text: str) -> tuple[bool, str]:

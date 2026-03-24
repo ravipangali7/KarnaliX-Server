@@ -11,10 +11,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
-from core.models import User, PasswordResetOTP, SiteSetting
+from core.models import User, PasswordResetOTP, SiteSetting, SuperSetting
 from core.services.email_service import send_otp_email
 from core.services.sms_service import send_sms
-from core.services.whatsapp_service import send_whatsapp_otp
+from core.services.whatsapp_service import meta_settings_deliver_otp_in_message, send_whatsapp_otp
 from core.utils.otp_host_policy import should_use_whatsapp_instead_of_sms
 
 
@@ -113,6 +113,23 @@ def forgot_password_send_otp(request):
     if channel == "whatsapp" and not (user.phone and user.phone.strip()):
         return Response({"detail": "User has no phone."}, status=status.HTTP_400_BAD_REQUEST)
 
+    delivery = channel
+    if channel == "whatsapp":
+        ss = SuperSetting.get_settings()
+        if not meta_settings_deliver_otp_in_message(ss):
+            if should_use_whatsapp_instead_of_sms(request):
+                return Response(
+                    {
+                        "detail": (
+                            "WhatsApp cannot include your reset code with the current Meta template. "
+                            "Use a template with one body variable for the code in Powerhouse → Super Settings, "
+                            "or contact support."
+                        )
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            delivery = "phone"
+
     # Invalidate any existing OTPs for this user
     PasswordResetOTP.objects.filter(user=user).delete()
 
@@ -120,20 +137,26 @@ def forgot_password_send_otp(request):
     expires_at = timezone.now() + timedelta(minutes=10)
     PasswordResetOTP.objects.create(user=user, otp=otp, channel=channel, expires_at=expires_at)
 
-    if channel == "phone" and user.phone:
-        ok, msg = send_sms(user.phone, f"Your KarnaliX reset code: {otp}")
+    reset_text = f"Your KarnaliX reset code: {otp}"
+    if delivery == "phone" and user.phone:
+        ok, msg = send_sms(user.phone, reset_text)
         if not ok:
             return Response({"detail": msg or "Failed to send SMS."}, status=status.HTTP_502_BAD_GATEWAY)
-    if channel == "email" and user.email:
+    elif delivery == "email" and user.email:
         ok, msg = send_otp_email(user.email, otp)
         if not ok:
             return Response({"detail": msg or "Failed to send email."}, status=status.HTTP_502_BAD_GATEWAY)
-    if channel == "whatsapp" and user.phone:
-        ok, msg = send_whatsapp_otp(user.phone, f"Your KarnaliX reset code: {otp}")
+    elif delivery == "whatsapp" and user.phone:
+        ok, msg = send_whatsapp_otp(user.phone, reset_text)
         if not ok:
             return Response({"detail": msg or "Failed to send WhatsApp."}, status=status.HTTP_502_BAD_GATEWAY)
 
-    return Response({"detail": "OTP sent."})
+    detail = "OTP sent."
+    if channel == "whatsapp" and delivery == "phone":
+        detail = (
+            "Your reset code was sent by SMS. WhatsApp is connected but not configured to show the code in-chat yet."
+        )
+    return Response({"detail": detail, "delivery": delivery})
 
 
 @api_view(["POST"])

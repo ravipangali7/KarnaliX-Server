@@ -11,9 +11,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
-from core.models import User, SignupOTP, SignupSession
+from core.models import User, SignupOTP, SignupSession, SuperSetting
 from core.services.sms_service import send_sms
-from core.services.whatsapp_service import send_whatsapp_otp
+from core.services.whatsapp_service import meta_settings_deliver_otp_in_message, send_whatsapp_otp
 from core.utils.otp_host_policy import should_use_whatsapp_instead_of_sms
 
 
@@ -73,13 +73,31 @@ def signup_send_otp(request):
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
+    delivery = channel
+    if channel == "whatsapp":
+        ss = SuperSetting.get_settings()
+        if not meta_settings_deliver_otp_in_message(ss):
+            if should_use_whatsapp_instead_of_sms(request):
+                return Response(
+                    {
+                        "detail": (
+                            "This site sends codes only by WhatsApp, but your Meta template cannot include the "
+                            "verification code (e.g. hello_world has no code field). In Powerhouse → Super Settings, "
+                            "create an approved template in Meta with one body variable for the code, enter its name, "
+                            "and turn ON “Send 6-digit OTP as template body parameter”."
+                        )
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            delivery = "sms"
+
     SignupOTP.objects.filter(phone=normalized).delete()
     otp = "".join(random.choices(string.digits, k=6))
     expires_at = now + timedelta(minutes=10)
     SignupOTP.objects.create(phone=normalized, otp=otp, expires_at=expires_at)
 
     text = f"Your KarnaliX verification code: {otp}"
-    if channel == "whatsapp":
+    if delivery == "whatsapp":
         ok, msg = send_whatsapp_otp(normalized, text)
     else:
         ok, msg = send_sms(normalized, text)
@@ -89,7 +107,13 @@ def signup_send_otp(request):
                 return Response({"detail": msg or "WhatsApp OTP is not configured."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             return Response({"detail": msg or "WhatsApp OTP not configured. Try SMS."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response({"detail": msg or "Failed to send OTP."}, status=status.HTTP_502_BAD_GATEWAY)
-    return Response({"detail": "OTP sent."})
+    detail = "OTP sent."
+    if channel == "whatsapp" and delivery == "sms":
+        detail = (
+            "Your code was sent by text message (SMS). WhatsApp is connected but not set up to show the code in the "
+            "message yet—ask your admin to enable an OTP template in Super Settings."
+        )
+    return Response({"detail": detail, "delivery": delivery})
 
 
 @api_view(["POST"])
