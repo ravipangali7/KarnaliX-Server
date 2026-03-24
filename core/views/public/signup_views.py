@@ -94,11 +94,12 @@ def signup_send_otp(request):
     SignupOTP.objects.filter(phone=normalized).delete()
     otp = "".join(random.choices(string.digits, k=6))
     expires_at = now + timedelta(minutes=10)
-    SignupOTP.objects.create(phone=normalized, otp=otp, expires_at=expires_at)
+    signup_otp = SignupOTP.objects.create(phone=normalized, otp=otp, expires_at=expires_at)
 
     text = f"Your KarnaliX verification code: {otp}"
+    waba_id = None
     if delivery == "whatsapp":
-        ok, msg = send_whatsapp_otp(normalized, text)
+        ok, msg, waba_id = send_whatsapp_otp(normalized, text)
     else:
         ok, msg = send_sms(normalized, text)
     if not ok:
@@ -107,6 +108,11 @@ def signup_send_otp(request):
                 return Response({"detail": msg or "WhatsApp OTP is not configured."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
             return Response({"detail": msg or "WhatsApp OTP not configured. Try SMS."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response({"detail": msg or "Failed to send OTP."}, status=status.HTTP_502_BAD_GATEWAY)
+    if ok and delivery == "whatsapp":
+        upd: dict = {"whatsapp_delivery_status": "sent"}
+        if waba_id:
+            upd["waba_message_id"] = waba_id
+        SignupOTP.objects.filter(pk=signup_otp.pk).update(**upd)
     detail = "OTP sent."
     if channel == "whatsapp" and delivery == "sms":
         detail = (

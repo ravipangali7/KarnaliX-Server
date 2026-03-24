@@ -164,6 +164,7 @@ class SuperSetting(models.Model):
     whatsapp_otp_template_name = models.CharField(max_length=255, blank=True)
     whatsapp_otp_template_language = models.CharField(max_length=32, blank=True, default='en_US')
     whatsapp_otp_template_body_param = models.BooleanField(default=False)
+    whatsapp_verify_token = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1029,6 +1030,8 @@ class PasswordResetOTP(models.Model):
     otp = models.CharField(max_length=10)
     channel = models.CharField(max_length=10)  # 'phone' or 'email'
     expires_at = models.DateTimeField()
+    waba_message_id = models.CharField(max_length=128, blank=True)
+    whatsapp_delivery_status = models.CharField(max_length=32, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1044,6 +1047,8 @@ class SignupOTP(models.Model):
     phone = models.CharField(max_length=20, db_index=True)
     otp = models.CharField(max_length=10)
     expires_at = models.DateTimeField()
+    waba_message_id = models.CharField(max_length=128, blank=True)
+    whatsapp_delivery_status = models.CharField(max_length=32, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

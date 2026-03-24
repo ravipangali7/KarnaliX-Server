@@ -135,9 +135,10 @@ def forgot_password_send_otp(request):
 
     otp = "".join(random.choices(string.digits, k=6))
     expires_at = timezone.now() + timedelta(minutes=10)
-    PasswordResetOTP.objects.create(user=user, otp=otp, channel=channel, expires_at=expires_at)
+    pr_otp = PasswordResetOTP.objects.create(user=user, otp=otp, channel=channel, expires_at=expires_at)
 
     reset_text = f"Your KarnaliX reset code: {otp}"
+    waba_id = None
     if delivery == "phone" and user.phone:
         ok, msg = send_sms(user.phone, reset_text)
         if not ok:
@@ -147,9 +148,17 @@ def forgot_password_send_otp(request):
         if not ok:
             return Response({"detail": msg or "Failed to send email."}, status=status.HTTP_502_BAD_GATEWAY)
     elif delivery == "whatsapp" and user.phone:
-        ok, msg = send_whatsapp_otp(user.phone, reset_text)
+        ok, msg, waba_id = send_whatsapp_otp(user.phone, reset_text)
         if not ok:
             return Response({"detail": msg or "Failed to send WhatsApp."}, status=status.HTTP_502_BAD_GATEWAY)
+    else:
+        ok = True
+
+    if ok and delivery == "whatsapp":
+        upd: dict = {"whatsapp_delivery_status": "sent"}
+        if waba_id:
+            upd["waba_message_id"] = waba_id
+        PasswordResetOTP.objects.filter(pk=pr_otp.pk).update(**upd)
 
     detail = "OTP sent."
     if channel == "whatsapp" and delivery == "phone":
