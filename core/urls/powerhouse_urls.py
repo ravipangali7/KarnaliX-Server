@@ -27,6 +27,7 @@ from core.views.powerhouse import (
     payment_mode_verification_views,
     me_views,
     payment_method_views,
+    clean_data_views,
 )
 from core.views.player import transfer_views
 from core.views.super import statement_views as super_statement_views
@@ -133,4 +134,6 @@ urlpatterns = [
     path('payment-methods/<int:pk>/', payment_method_views.payment_method_detail),
     path('countries/', country_views.country_list_create),
     path('countries/<int:pk>/', country_views.country_detail),
+    path('clean-data/', clean_data_views.clean_data_catalog),
+    path('clean-data/execute/', clean_data_views.clean_data_execute),
 ]
