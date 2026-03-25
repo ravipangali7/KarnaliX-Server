@@ -157,8 +157,8 @@ def _send_meta_template(
             }
         ]
 
-    # Meta accepts E.164; send with leading + (digits-only string normalized upstream).
-    to_recipient = to_digits if to_digits.startswith("+") else f"+{to_digits}"
+    # Meta `to`: country code + national number, digits only (no leading +), e.g. 9779812345678
+    to_recipient = "".join(c for c in str(to_digits) if c.isdigit())
     payload = {
         "messaging_product": "whatsapp",
         "to": to_recipient,
