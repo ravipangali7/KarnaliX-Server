@@ -78,28 +78,11 @@ def signup_send_otp(request):
         ss = SuperSetting.get_settings()
         if not meta_settings_deliver_otp_in_message(ss):
             tmpl = (ss.wa_template_name or "").strip() if ss else ""
-            if should_use_whatsapp_instead_of_sms(request):
-                print(
-                    "[signup_send_otp] WhatsApp-only host: Meta template cannot include OTP in message "
-                    f"(wa_template_name={tmpl!r}). Returning 503.",
-                    flush=True,
-                )
-                return Response(
-                    {
-                        "detail": (
-                            "This site sends codes only by WhatsApp, but the configured Meta template cannot include the "
-                            "verification code (e.g. hello_world has no code field). In Powerhouse → Super Settings, "
-                            "set template name to an approved template whose body has one variable for the 6-digit code."
-                        )
-                    },
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                )
             print(
-                "[signup_send_otp] WhatsApp requested but Meta template cannot include OTP in message "
-                f"(wa_template_name={tmpl!r}); falling back to SMS.",
+                "[signup_send_otp] WhatsApp requested with a Meta template that cannot include OTP in message "
+                f"(wa_template_name={tmpl!r}). Will send WhatsApp template anyway (no SMS fallback).",
                 flush=True,
             )
-            delivery = "sms"
 
     SignupOTP.objects.filter(phone=normalized).delete()
     otp = "".join(random.choices(string.digits, k=6))
@@ -124,11 +107,15 @@ def signup_send_otp(request):
             upd["waba_message_id"] = waba_id
         SignupOTP.objects.filter(pk=signup_otp.pk).update(**upd)
     detail = "OTP sent."
-    if channel == "whatsapp" and delivery == "sms":
-        detail = (
-            "Your code was sent by text message (SMS). WhatsApp is connected but the template cannot include the "
-            "code yet—ask your admin to set an authentication-style template in Super Settings."
-        )
+    if channel == "whatsapp":
+        ss = SuperSetting.get_settings()
+        if not meta_settings_deliver_otp_in_message(ss):
+            tmpl = (ss.wa_template_name or "").strip() if ss else ""
+            detail = (
+                "WhatsApp message sent, but the current Meta template cannot display the OTP in-chat "
+                f"(template={tmpl or 'not set'}). Please ask admin to configure an authentication template with one "
+                "body variable for the 6-digit code."
+            )
     return Response({"detail": detail, "delivery": delivery})
 
 

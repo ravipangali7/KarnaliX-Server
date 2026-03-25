@@ -118,28 +118,11 @@ def forgot_password_send_otp(request):
         ss = SuperSetting.get_settings()
         if not meta_settings_deliver_otp_in_message(ss):
             tmpl = (ss.wa_template_name or "").strip() if ss else ""
-            if should_use_whatsapp_instead_of_sms(request):
-                print(
-                    "[forgot_password_send_otp] WhatsApp-only host: Meta template cannot include OTP in message "
-                    f"(wa_template_name={tmpl!r}). Returning 503.",
-                    flush=True,
-                )
-                return Response(
-                    {
-                        "detail": (
-                            "WhatsApp cannot include your reset code with the current Meta template. "
-                            "Use a template with one body variable for the code in Powerhouse → Super Settings, "
-                            "or contact support."
-                        )
-                    },
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                )
             print(
-                "[forgot_password_send_otp] WhatsApp requested but Meta template cannot include OTP in message "
-                f"(wa_template_name={tmpl!r}); falling back to SMS (phone channel).",
+                "[forgot_password_send_otp] WhatsApp requested with a Meta template that cannot include OTP in message "
+                f"(wa_template_name={tmpl!r}). Will send WhatsApp template anyway (no SMS fallback).",
                 flush=True,
             )
-            delivery = "phone"
 
     # Invalidate any existing OTPs for this user
     PasswordResetOTP.objects.filter(user=user).delete()
@@ -172,10 +155,15 @@ def forgot_password_send_otp(request):
         PasswordResetOTP.objects.filter(pk=pr_otp.pk).update(**upd)
 
     detail = "OTP sent."
-    if channel == "whatsapp" and delivery == "phone":
-        detail = (
-            "Your reset code was sent by SMS. WhatsApp is connected but not configured to show the code in-chat yet."
-        )
+    if channel == "whatsapp":
+        ss = SuperSetting.get_settings()
+        if not meta_settings_deliver_otp_in_message(ss):
+            tmpl = (ss.wa_template_name or "").strip() if ss else ""
+            detail = (
+                "WhatsApp message sent, but the current Meta template cannot display the reset code in-chat "
+                f"(template={tmpl or 'not set'}). Please ask admin to configure an authentication template with one "
+                "body variable for the 6-digit code."
+            )
     return Response({"detail": detail, "delivery": delivery})
 
 
