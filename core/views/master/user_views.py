@@ -96,6 +96,8 @@ def player_update(request, pk):
         return pin_err
     data = request.data.copy()
     data.pop('pin', None)
+    if 'parent' in data:
+        return Response({'detail': 'You are not allowed to change player master.'}, status=status.HTTP_403_FORBIDDEN)
     qs = get_players_queryset(request.user)
     obj = qs.filter(pk=pk).first()
     if not obj:

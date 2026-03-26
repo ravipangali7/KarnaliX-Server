@@ -237,6 +237,16 @@ def player_update(request, pk):
         return pin_err
     data = request.data.copy()
     data.pop('pin', None)
+    if 'parent' in data:
+        parent_id = data.get('parent')
+        try:
+            parent_id = int(parent_id)
+        except (TypeError, ValueError):
+            return Response({'detail': 'Invalid master selected.'}, status=status.HTTP_400_BAD_REQUEST)
+        allowed_master = get_masters_queryset(request.user).filter(pk=parent_id, role=UserRole.MASTER).first()
+        if not allowed_master:
+            return Response({'detail': 'Selected master is not allowed.'}, status=status.HTTP_400_BAD_REQUEST)
+        data['parent'] = allowed_master.id
     qs = get_players_queryset(request.user)
     obj = qs.filter(pk=pk).first()
     if not obj:

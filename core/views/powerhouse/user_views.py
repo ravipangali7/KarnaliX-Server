@@ -108,7 +108,18 @@ def _user_update_response(request, role_type, pk):
     obj = qs.filter(pk=pk).first()
     if not obj:
         return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
-    ser = UserCreateUpdateSerializer(obj, data=request.data, partial=(request.method == 'PATCH'))
+    data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+    if role_type == 'player' and 'parent' in data:
+        parent_id = data.get('parent')
+        try:
+            parent_id = int(parent_id)
+        except (TypeError, ValueError):
+            return Response({'detail': 'Invalid master selected.'}, status=status.HTTP_400_BAD_REQUEST)
+        allowed_master = get_masters_queryset(request.user).filter(pk=parent_id, role=UserRole.MASTER).first()
+        if not allowed_master:
+            return Response({'detail': 'Selected master is not allowed.'}, status=status.HTTP_400_BAD_REQUEST)
+        data['parent'] = allowed_master.id
+    ser = UserCreateUpdateSerializer(obj, data=data, partial=(request.method == 'PATCH'))
     ser.is_valid(raise_exception=True)
     ser.save()
     return Response(UserDetailSerializer(obj).data)
