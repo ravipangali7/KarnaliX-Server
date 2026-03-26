@@ -16,6 +16,12 @@ class PerIpRateThrottle(SimpleRateThrottle):
             return xff.split(",")[0].strip() or "unknown"
         return request.META.get("REMOTE_ADDR") or "unknown"
 
+    def get_cache_key(self, request, view):
+        ident = self.get_ident(request)
+        if not ident:
+            return None
+        return self.cache_format % {"scope": self.scope, "ident": ident}
+
 
 class LoginIPThrottle(PerIpRateThrottle):
     scope = "login"
