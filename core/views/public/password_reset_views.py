@@ -6,12 +6,18 @@ import string
 from datetime import timedelta
 
 from django.utils import timezone
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
 from core.models import User, PasswordResetOTP, SiteSetting, SuperSetting
+from core.throttles import (
+    ForgotPasswordSearchIPThrottle,
+    ForgotPasswordSendOtpIPThrottle,
+    ForgotPasswordVerifyResetIPThrottle,
+    ForgotPasswordWhatsappContactIPThrottle,
+)
 from core.services.email_service import send_otp_email
 from core.services.sms_service import send_sms
 from core.services.whatsapp_service import meta_settings_deliver_otp_in_message, send_whatsapp_otp
@@ -37,6 +43,7 @@ def _mask_email(email):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([ForgotPasswordSearchIPThrottle])
 def forgot_password_search(request):
     """
     POST { "phone" | "username" | "email": value }.
@@ -90,6 +97,7 @@ def forgot_password_search(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([ForgotPasswordSendOtpIPThrottle])
 def forgot_password_send_otp(request):
     """
     POST { "user_id": int, "channel": "phone" | "email" | "whatsapp" }.
@@ -169,6 +177,7 @@ def forgot_password_send_otp(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([ForgotPasswordVerifyResetIPThrottle])
 def forgot_password_verify_reset(request):
     """
     POST { "user_id": int, "otp": str, "new_password": str }.
@@ -205,6 +214,7 @@ def forgot_password_verify_reset(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@throttle_classes([ForgotPasswordWhatsappContactIPThrottle])
 def forgot_password_whatsapp_contact(request):
     """
     GET ?user_id=... — return { whatsapp_number } for user (parent master or site setting).

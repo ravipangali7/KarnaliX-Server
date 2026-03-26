@@ -5,13 +5,19 @@ import re
 import requests
 from django.contrib.auth import authenticate
 from django.utils import timezone
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 
 from core.models import User, UserRole, SignupSession, SuperSetting, SiteSetting, ActivityAction
+from core.throttles import (
+    GoogleCompleteIPThrottle,
+    GoogleLoginIPThrottle,
+    LoginIPThrottle,
+    RegisterIPThrottle,
+)
 from core.serializers import (
     LoginSerializer,
     RegisterSerializer,
@@ -48,6 +54,7 @@ def _get_google_auth_config():
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([LoginIPThrottle])
 def login(request):
     """POST { username, password } -> { token, user }."""
     ser = LoginSerializer(data=request.data)
@@ -85,6 +92,7 @@ def login(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([RegisterIPThrottle])
 def register(request):
     """POST { signup_token, phone, name, password, referral_code? }. Creates user after OTP verification."""
     ser = RegisterSerializer(data=request.data)
@@ -194,6 +202,7 @@ def _verify_google_id_token(id_token):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([GoogleLoginIPThrottle])
 def google_login(request):
     """
     POST { id_token }.
@@ -238,6 +247,7 @@ def google_login(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@throttle_classes([GoogleCompleteIPThrottle])
 def google_complete(request):
     """
     POST { id_token, username, password }. Creates user for new Google signup after username and password are provided.

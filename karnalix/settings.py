@@ -98,6 +98,37 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
+    # DRF throttling uses django cache. Configure at least a basic cache backend
+    # (Redis recommended in production).
+    'DEFAULT_THROTTLE_RATES': {
+        # Public auth endpoints (per IP, per minute)
+        'login': '10/min',
+        'register': '10/min',
+        'google_login': '10/min',
+        'google_complete': '10/min',
+
+        # Signup OTP flow
+        'signup_check_phone': '30/min',
+        'signup_send_otp': '10/min',        # Additional per-phone cooldown exists in signup_views.py
+        'signup_verify_otp': '10/min',
+
+        # Password reset flow
+        'forgot_password_search': '30/min',
+        'forgot_password_send_otp': '5/min',
+        'forgot_password_verify_reset': '10/min',
+        'forgot_password_whatsapp_contact': '30/min',
+    },
+}
+
+#
+# Cache backend required for DRF throttling to work.
+# NOTE: For multiple gunicorn/daphne workers, switch this to Redis.
+#
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'drf-throttling',
+    }
 }
 
 CORS_ALLOW_ALL_ORIGINS = True

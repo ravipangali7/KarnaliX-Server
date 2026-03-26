@@ -383,15 +383,55 @@ class SiteSettingSerializer(serializers.ModelSerializer):
 # --- SliderSlide ---
 class SliderSlideSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField(read_only=True)
+    mobile_image_url = serializers.SerializerMethodField(read_only=True)
+    desktop_image_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = SliderSlide
         fields = [
             'id', 'title', 'subtitle', 'image', 'image_file',
+            'mobile_image', 'desktop_image', 'mobile_image_url', 'desktop_image_url',
             'cta_label', 'cta_link', 'order', 'created_at', 'updated_at',
         ]
 
     def get_image(self, obj):
+        # Backward-compatible image field for existing consumers.
+        if obj.desktop_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.desktop_image.url)
+            return obj.desktop_image.url
+        if obj.mobile_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.mobile_image.url)
+            return obj.mobile_image.url
+        if obj.image_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image_file.url)
+            return obj.image_file.url
+        return (obj.image or '').strip() or None
+
+    def get_mobile_image_url(self, obj):
+        if obj.mobile_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.mobile_image.url)
+            return obj.mobile_image.url
+        if obj.image_file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image_file.url)
+            return obj.image_file.url
+        return (obj.image or '').strip() or None
+
+    def get_desktop_image_url(self, obj):
+        if obj.desktop_image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.desktop_image.url)
+            return obj.desktop_image.url
         if obj.image_file:
             request = self.context.get('request')
             if request:

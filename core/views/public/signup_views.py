@@ -6,12 +6,17 @@ import string
 from datetime import timedelta
 
 from django.utils import timezone
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
 from core.models import User, SignupOTP, SignupSession, SuperSetting
+from core.throttles import (
+    SignupCheckPhoneIPThrottle,
+    SignupSendOtpIPThrottle,
+    SignupVerifyOtpIPThrottle,
+)
 from core.services.sms_service import send_sms
 from core.services.whatsapp_service import meta_settings_deliver_otp_in_message, send_whatsapp_otp
 from core.utils.otp_host_policy import should_use_whatsapp_instead_of_sms
@@ -33,6 +38,7 @@ SIGNUP_OTP_COOLDOWN_SECONDS = 60
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([SignupCheckPhoneIPThrottle])
 def signup_check_phone(request):
     """
     POST { "phone": "9779812345678" or "9812345678" }.
@@ -48,6 +54,7 @@ def signup_check_phone(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([SignupSendOtpIPThrottle])
 def signup_send_otp(request):
     """
     POST { "phone": "...", "channel": "sms" | "whatsapp" }.
@@ -121,6 +128,7 @@ def signup_send_otp(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([SignupVerifyOtpIPThrottle])
 def signup_verify_otp(request):
     """
     POST { "phone": "...", "otp": "123456" }.
