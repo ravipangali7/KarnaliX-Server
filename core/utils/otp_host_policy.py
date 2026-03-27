@@ -10,6 +10,9 @@ NO_SMS_FRONTEND_HOSTNAMES = frozenset(
         "myr.luckyuser365.com",
         "aed.luckyuser365.com",
         "aud.luckyuser365.com",
+        "lucky365bht.com",
+        "lucky365ind.com",
+        "lucky365bhd.com",
     }
 )
 
