@@ -1,5 +1,6 @@
 from django.urls import path
 from core.views.powerhouse import (
+    analytics_views,
     country_views,
     dashboard_views,
     user_views,
@@ -36,6 +37,11 @@ from core.views import reject_suggestions_views
 
 urlpatterns = [
     path('dashboard/', dashboard_views.dashboard),
+    path('analytics/overview/', analytics_views.overview),
+    path('analytics/games/', analytics_views.game_analytics),
+    path('analytics/finance/', analytics_views.finance_analytics),
+    path('analytics/customers/', analytics_views.customer_analytics),
+    path('analytics/user/<int:user_id>/', analytics_views.user_analytics),
     path('reject-reason-suggestions/', reject_suggestions_views.reject_reason_suggestions_list),
     path('supers/', user_views.user_list_supers),
     path('supers/<int:pk>/', user_views.user_detail_supers),
