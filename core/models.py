@@ -247,6 +247,12 @@ class User(AbstractUser):
         decimal_places=2,
         default=default_decimal_zero
     )
+    game_wallet = models.CharField(
+        max_length=10,
+        default='main',
+        blank=True,
+        help_text='Tracks which wallet (main/bonus) was sent to provider at last game launch. Updated at launch; read at callback.'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -42,6 +42,7 @@ def wallet(request):
         'total_withdrawable': str(eligibility['total_withdrawable']),
         'can_withdraw_main': eligibility['can_withdraw_main'],
         'can_withdraw_bonus': eligibility['can_withdraw_bonus'],
+        'rolls_needed': eligibility.get('rolls_needed', 0),
         'master_whatsapp_number': master_whatsapp_number,
         'master_whatsapp_deposit': master_whatsapp_deposit,
         'master_whatsapp_withdraw': master_whatsapp_withdraw,

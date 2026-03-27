@@ -186,13 +186,22 @@ def game_callback(request):
     )
     if existing and is_round_end_only:
         # Idempotent ack: keep existing GameLog, only sync balance to provider's wallet_after.
-        user.main_balance = wallet_after
-        user.save(update_fields=["main_balance"])
+        if user.game_wallet == 'bonus':
+            user.bonus_balance = wallet_after
+            user.save(update_fields=["bonus_balance"])
+        else:
+            user.main_balance = wallet_after
+            user.save(update_fields=["main_balance"])
         logger.info(
-            "game_callback: round-end only (idempotent) user_id=%s game_round=%s wallet_after=%s",
-            user.pk, game_round, wallet_after,
+            "game_callback: round-end only (idempotent) user_id=%s game_round=%s wallet_after=%s wallet=%s",
+            user.pk, game_round, wallet_after, user.game_wallet,
         )
         return JsonResponse({"status": "ok"}, status=200)
+
+    # Determine which wallet this game session uses so we update the right balance field
+    is_bonus_game = (getattr(user, 'game_wallet', 'main') == 'bonus')
+    log_wallet = GameLogWallet.BONUS_BALANCE if is_bonus_game else GameLogWallet.MAIN_BALANCE
+    tx_wallet = TransactionWallet.BONUS_BALANCE if is_bonus_game else TransactionWallet.MAIN_BALANCE
 
     if existing:
         # Second callback (result): provider often sends bet_amount=0; preserve first-callback bet and round-start balance.
@@ -205,15 +214,16 @@ def game_callback(request):
         existing.lose_amount = lose_amount_value
         existing.before_balance = wallet_before
         existing.after_balance = wallet_after
+        existing.wallet = log_wallet
         existing.provider_raw_data = data
-        existing.save(update_fields=["bet_amount", "win_amount", "type", "lose_amount", "before_balance", "after_balance", "provider_raw_data", "updated_at"])
+        existing.save(update_fields=["bet_amount", "win_amount", "type", "lose_amount", "before_balance", "after_balance", "wallet", "provider_raw_data", "updated_at"])
         game_log = existing
     else:
         game_log = GameLog.objects.create(
             user=user,
             game=game,
             provider=game.provider,
-            wallet=GameLogWallet.MAIN_BALANCE,
+            wallet=log_wallet,
             type=log_type,
             round=game_round,
             bet_amount=bet,
@@ -224,8 +234,13 @@ def game_callback(request):
             provider_raw_data=data,
         )
 
-    user.main_balance = wallet_after
-    user.save(update_fields=["main_balance"])
+    # Update the correct balance field based on which wallet was sent to the provider at launch
+    if is_bonus_game:
+        user.bonus_balance = wallet_after
+        user.save(update_fields=["bonus_balance"])
+    else:
+        user.main_balance = wallet_after
+        user.save(update_fields=["main_balance"])
 
     master = getattr(user, "parent", None)
     if master and master.role == UserRole.MASTER:
@@ -238,7 +253,7 @@ def game_callback(request):
         Transaction.objects.create(
             user=user,
             action_type=TransactionActionType.IN if net >= 0 else TransactionActionType.OUT,
-            wallet=TransactionWallet.MAIN_BALANCE,
+            wallet=tx_wallet,
             transaction_type=TransactionType.PL,
             amount=abs(net),
             status=TransactionStatus.SUCCESS,

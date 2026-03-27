@@ -47,23 +47,28 @@ def get_withdraw_eligibility(user):
     approved_bonus_requests = list(
         BonusRequest.objects.filter(user=user, status='approved').select_related('bonus_rule')
     )
+    rolls_needed = 0  # remaining games the player must play before bonus is withdrawable
     if not approved_bonus_requests:
         bonus_withdrawable = Decimal('0')
         can_withdraw_bonus = False
     else:
         all_rolls_met = True
+        max_remaining = 0
         for req in approved_bonus_requests:
             roll_required = (req.bonus_rule.roll_required or 0) if req.bonus_rule else 0
             if not req.processed_at:
                 all_rolls_met = False
-                break
+                max_remaining = max(max_remaining, roll_required)
+                continue
             count = GameLog.objects.filter(
                 user=user,
                 created_at__gt=req.processed_at,
             ).count()
-            if count < roll_required:
+            remaining = max(0, roll_required - count)
+            if remaining > 0:
                 all_rolls_met = False
-                break
+            max_remaining = max(max_remaining, remaining)
+        rolls_needed = max_remaining
         if not all_rolls_met:
             bonus_withdrawable = Decimal('0')
             can_withdraw_bonus = False
@@ -78,4 +83,5 @@ def get_withdraw_eligibility(user):
         'total_withdrawable': total_withdrawable,
         'can_withdraw_main': can_withdraw_main,
         'can_withdraw_bonus': can_withdraw_bonus,
+        'rolls_needed': rolls_needed,
     }

@@ -15,9 +15,10 @@ from core.game_api_client import launch_game, build_launch_url
 def _wallet_amount_for_launch(user, min_bet=None):
     """
     Wallet amount to send to provider at launch. Never send main + bonus combined.
-    - If main_balance > 0: send only main_balance.
-    - Else if main_balance is 0 and bonus_balance >= min_bet: send only bonus_balance.
+    - If main_balance >= min_bet: send only main_balance.
+    - Else if bonus_balance >= min_bet: send only bonus_balance (main too small to cover min bet).
     - Else: send 0.
+    Returns (amount_float, wallet_type) where wallet_type is 'main' or 'bonus'.
     """
     main = user.main_balance if user.main_balance is not None else Decimal("0")
     bonus = user.bonus_balance if user.bonus_balance is not None else Decimal("0")
@@ -28,11 +29,13 @@ def _wallet_amount_for_launch(user, min_bet=None):
         bonus = Decimal(str(bonus))
     if not isinstance(min_bet, Decimal):
         min_bet = Decimal(str(min_bet))
-    if main > 0:
-        return float(main)
-    if main == 0 and bonus >= min_bet:
-        return float(bonus)
-    return 0.0
+    # Use main if it can cover at least the minimum bet
+    if main >= min_bet:
+        return float(main), 'main'
+    # Fall back to bonus when main is too low (including main == 0)
+    if bonus >= min_bet:
+        return float(bonus), 'bonus'
+    return 0.0, 'main'
 
 
 def _normalize_launch_base(launch_base: str) -> str:
@@ -66,7 +69,11 @@ def _launch_game_common(request):
     user = request.user
     game_for_min_bet = Game.objects.filter(game_uid=game_uid).first()
     min_bet = game_for_min_bet.min_bet if game_for_min_bet else None
-    wallet_amount = _wallet_amount_for_launch(user, min_bet)
+    wallet_amount, wallet_type = _wallet_amount_for_launch(user, min_bet)
+    # Persist which wallet is active so the callback can update the right balance field
+    if user.game_wallet != wallet_type:
+        user.game_wallet = wallet_type
+        user.save(update_fields=['game_wallet'])
     launch_base = (getattr(settings, "game_api_launch_url", None) or "").strip() or settings.game_api_url
     launch_base = _normalize_launch_base(launch_base)
     user_id = str(user.pk)
@@ -193,7 +200,11 @@ def launch_game_by_id(request, game_id):
         callback_url = request.build_absolute_uri("/api/callback/").rstrip("/") or None
 
     user = request.user
-    wallet_amount = _wallet_amount_for_launch(user, game.min_bet)
+    wallet_amount, wallet_type = _wallet_amount_for_launch(user, game.min_bet)
+    # Persist which wallet is active so the callback can update the right balance field
+    if user.game_wallet != wallet_type:
+        user.game_wallet = wallet_type
+        user.save(update_fields=['game_wallet'])
     user_id = str(user.pk)
 
     try:
