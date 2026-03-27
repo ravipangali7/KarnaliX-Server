@@ -135,10 +135,22 @@ def game_callback(request):
         logger.warning("game_callback: invalid parameters, data keys=%s", list(data.keys()) if data else [])
         return JsonResponse({"error": "Invalid parameters"}, status=400)
 
-    # Only validate token when we have a configured token AND the provider sent one (some providers don't echo token)
-    settings = SuperSetting.get_settings()
-    if settings and getattr(settings, "game_api_token", None) and settings.game_api_token and (token or "").strip():
-        if (token or "").strip() != settings.game_api_token:
+    # Resolve effective token: provider first, SuperSetting as fallback
+    # Only validate when we have a configured token AND the provider sent one (some providers don't echo token)
+    provider_token = ""
+    if game_uid:
+        from_game = Game.objects.filter(game_uid=game_uid).select_related("provider").first()
+        if from_game and from_game.provider:
+            provider_token = (from_game.provider.api_token or "").strip()
+
+    super_settings = SuperSetting.get_settings()
+    effective_token = provider_token or (
+        (getattr(super_settings, "game_api_token", None) or "").strip()
+        if super_settings else ""
+    )
+
+    if effective_token and (token or "").strip():
+        if (token or "").strip() != effective_token:
             logger.warning("game_callback: token mismatch for mobile=%s", mobile)
             return JsonResponse({"error": "Invalid token"}, status=403)
 
