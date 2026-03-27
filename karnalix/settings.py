@@ -184,8 +184,8 @@ DATABASES = {
 
         # 'NAME': 'luckyuser365',
         # 'NAME': 'lucky365ind',
-        # 'NAME': 'lucky365bhd',
-        'NAME': 'lucky365bht',
+        'NAME': 'lucky365bhd',
+        # 'NAME': 'lucky365bht',
 
         'USER': 'root',
         'PASSWORD': '7a5a70064acdfd90',
