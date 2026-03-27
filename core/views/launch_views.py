@@ -29,6 +29,9 @@ def _wallet_amount_for_launch(user, min_bet=None):
         bonus = Decimal(str(bonus))
     if not isinstance(min_bet, Decimal):
         min_bet = Decimal(str(min_bet))
+    # Apply same default as frontend (Number(g.min_bet) || 10): treat 0/unset min_bet as 10
+    if min_bet <= 0:
+        min_bet = Decimal("10")
     # Use main if it can cover at least the minimum bet
     if main >= min_bet:
         return float(main), 'main'
