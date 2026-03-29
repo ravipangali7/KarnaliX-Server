@@ -161,8 +161,8 @@ WSGI_APPLICATION = 'karnalix.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-SITE_DOMAIN = 'https://luckyuser365.com'
-# SITE_DOMAIN = 'https://lucky365ind.com'
+# SITE_DOMAIN = 'https://luckyuser365.com'
+SITE_DOMAIN = 'https://lucky365ind.com'
 # SITE_DOMAIN = 'https://lucky365bhd.com'
 # SITE_DOMAIN = 'https://lucky365bht.com'
 
@@ -170,8 +170,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
 
-        'NAME': 'luckyuser365',
-        # 'NAME': 'lucky365ind',
+        # 'NAME': 'luckyuser365',
+        'NAME': 'lucky365ind',
         # 'NAME': 'lucky365bhd',
         # 'NAME': 'lucky365bht',
 
