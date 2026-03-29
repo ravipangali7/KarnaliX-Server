@@ -171,8 +171,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
 
         # 'NAME': 'luckyuser365',
-        'NAME': 'lucky365ind',
-        # 'NAME': 'lucky365bhd',
+        # 'NAME': 'lucky365ind',
+        'NAME': 'lucky365bhd',
         # 'NAME': 'lucky365bht',
 
         'USER': 'root',
