@@ -1,3 +1,4 @@
+import secrets
 from django.db.models import Sum, Subquery, OuterRef, Max
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -142,6 +143,46 @@ def player_toggle_active(request, pk):
     obj.is_active = bool(is_active)
     obj.save(update_fields=['is_active'])
     return Response(UserDetailSerializer(obj).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def player_regenerate_pin(request, pk):
+    err = require_role(request, [UserRole.MASTER])
+    if err:
+        return err
+    pin_err = _verify_master_pin(request)
+    if pin_err:
+        return pin_err
+    qs = get_players_queryset(request.user)
+    obj = qs.filter(pk=pk).first()
+    if not obj:
+        return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    new_pin = ''.join(secrets.choice('0123456789') for _ in range(6))
+    obj.pin = new_pin
+    obj.save(update_fields=['pin'])
+    return Response({'detail': 'PIN regenerated successfully.'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def player_reset_password(request, pk):
+    err = require_role(request, [UserRole.MASTER])
+    if err:
+        return err
+    pin_err = _verify_master_pin(request)
+    if pin_err:
+        return pin_err
+    new_password = request.data.get('new_password')
+    if not new_password:
+        return Response({'detail': 'new_password required.'}, status=status.HTTP_400_BAD_REQUEST)
+    qs = get_players_queryset(request.user)
+    obj = qs.filter(pk=pk).first()
+    if not obj:
+        return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+    obj.set_password(new_password)
+    obj.save(update_fields=['password'])
+    return Response({'detail': 'Password reset successfully.'})
 
 
 @api_view(['GET'])
