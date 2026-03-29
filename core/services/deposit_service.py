@@ -117,6 +117,9 @@ def approve_deposit(deposit, processed_by, pin=None, use_password=False):
     )
     if user.role == UserRole.PLAYER:
         notify_player_approval(user, processed_by, f'Your deposit of ₹{amount} has been approved.')
+        # First-deposit bonus: player-requested deposits only (not staff-initiated)
+        if deposit.suppress_first_deposit_bonus:
+            return True, None
         # First-deposit bonus: if this is the user's first approved deposit and a rule applies, credit bonus
         approved_count = Deposit.objects.filter(user=user, status='approved').count()
         if approved_count == 1:

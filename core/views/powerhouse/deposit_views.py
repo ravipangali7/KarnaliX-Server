@@ -110,7 +110,8 @@ def deposit_create(request):
     ser.is_valid(raise_exception=True)
     user_id = request.data.get('user_id')
     from core.models import Deposit as DepositModel
-    dep = DepositModel.objects.create(user_id=user_id, **ser.validated_data)
+    v = {**ser.validated_data, 'suppress_first_deposit_bonus': True}
+    dep = DepositModel.objects.create(user_id=user_id, **v)
     return Response(DepositSerializer(dep, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
@@ -180,6 +181,7 @@ def deposit_direct(request):
         reference_id=reference_id,
         status='pending',
         payment_mode_id=payment_mode.pk if payment_mode else None,
+        suppress_first_deposit_bonus=True,
     )
     ok, msg = approve_deposit(dep, request.user)
     if not ok:
